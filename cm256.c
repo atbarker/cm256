@@ -27,7 +27,9 @@
 */
 
 #include "cm256.h"
-
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
 
 /*
     GF(256) Cauchy Matrix Overview
@@ -75,7 +77,7 @@
 //-----------------------------------------------------------------------------
 // Initialization
 
-extern "C" int cm256_init_(int version)
+extern int cm256_init_(int version)
 {
     if (version != CM256_VERSION)
     {
@@ -132,7 +134,7 @@ static GF256_FORCE_INLINE unsigned char GetMatrixElement(unsigned char x_i, unsi
 //-----------------------------------------------------------------------------
 // Encoding
 
-extern "C" void cm256_encode_block(
+extern void cm256_encode_block(
     cm256_encoder_params params, // Encoder parameters
     cm256_block* originals,      // Array of pointers to original blocks
     int recoveryBlockIndex,      // Return value from cm256_get_recovery_block_index()
@@ -164,11 +166,11 @@ extern "C" void cm256_encode_block(
     // TBD: Faster algorithms seem to exist for computing this matrix-vector product.
 
     // Start the x_0 values arbitrarily from the original count.
-    const uint8_t x_0 = static_cast<uint8_t>(params.OriginalCount);
+    const uint8_t x_0 = (uint8_t)(params.OriginalCount);
 
     // For other rows:
     {
-        const uint8_t x_i = static_cast<uint8_t>(recoveryBlockIndex);
+        const uint8_t x_i = (uint8_t)(recoveryBlockIndex);
 
         // Unroll first operation for speed
         {
@@ -181,7 +183,7 @@ extern "C" void cm256_encode_block(
         // For each original data column,
         for (int j = 1; j < params.OriginalCount; ++j)
         {
-            const uint8_t y_j = static_cast<uint8_t>(j);
+            const uint8_t y_j = (uint8_t)(j);
             const uint8_t matrixElement = GetMatrixElement(x_i, x_0, y_j);
 
             gf256_muladd_mem(recoveryBlock, matrixElement, originals[j].Block, params.BlockBytes);
@@ -189,7 +191,7 @@ extern "C" void cm256_encode_block(
     }
 }
 
-extern "C" int cm256_encode(
+extern int cm256_encode(
     cm256_encoder_params params, // Encoder params
     cm256_block* originals,      // Array of pointers to original blocks
     void* recoveryBlocks)        // Output recovery blocks end-to-end
@@ -210,7 +212,7 @@ extern "C" int cm256_encode(
         return -3;
     }
 
-    uint8_t* recoveryBlock = static_cast<uint8_t*>(recoveryBlocks);
+    uint8_t* recoveryBlock = (uint8_t*)(recoveryBlocks);
 
     for (int block = 0; block < params.RecoveryCount; ++block, recoveryBlock += params.BlockBytes)
     {
@@ -224,7 +226,7 @@ extern "C" int cm256_encode(
 //-----------------------------------------------------------------------------
 // Decoding
 
-struct CM256Decoder
+typedef struct
 {
     // Encode parameters
     cm256_encoder_params Params;
@@ -241,7 +243,7 @@ struct CM256Decoder
     uint8_t ErasuresIndices[256];
 
     // Initialize the decoder
-    bool Initialize(cm256_encoder_params& params, cm256_block* blocks);
+    bool Initialize(cm256_encoder_params params, cm256_block* blocks);
 
     // Decode m=1 case
     void DecodeM1();
@@ -251,9 +253,9 @@ struct CM256Decoder
 
     // Generate the LU decomposition of the matrix
     void GenerateLDUDecomposition(uint8_t* matrix_L, uint8_t* diag_D, uint8_t* matrix_U);
-};
+}CM256Decoder;
 
-bool CM256Decoder::Initialize(cm256_encoder_params& params, cm256_block* blocks)
+bool CM256Decoder::Initialize(cm256_encoder_params params, cm256_block* blocks)
 {
     Params = params;
 
@@ -296,7 +298,7 @@ bool CM256Decoder::Initialize(cm256_encoder_params& params, cm256_block* blocks)
     {
         if (!ErasuresIndices[ii])
         {
-            ErasuresIndices[indexCount] = static_cast<uint8_t>( ii );
+            ErasuresIndices[indexCount] = (uint8_t)( ii );
 
             if (++indexCount >= RecoveryCount)
             {
@@ -311,13 +313,13 @@ bool CM256Decoder::Initialize(cm256_encoder_params& params, cm256_block* blocks)
 void CM256Decoder::DecodeM1()
 {
     // XOR all other blocks into the recovery block
-    uint8_t* outBlock = static_cast<uint8_t*>(Recovery[0]->Block);
+    uint8_t* outBlock = (uint8_t*)(Recovery[0]->Block);
     const uint8_t* inBlock = nullptr;
 
     // For each block,
     for (int ii = 0; ii < OriginalCount; ++ii)
     {
-        const uint8_t* inBlock2 = static_cast<const uint8_t*>(Original[ii]->Block);
+        const uint8_t* inBlock2 = (const uint8_t*)(Original[ii]->Block);
 
         if (!inBlock)
         {
@@ -369,7 +371,7 @@ void CM256Decoder::GenerateLDUDecomposition(uint8_t* matrix_L, uint8_t* diag_D, 
     int firstOffset_U = 0;
 
     // Start the x_0 values arbitrarily from the original count.
-    const uint8_t x_0 = static_cast<uint8_t>(Params.OriginalCount);
+    const uint8_t x_0 = (uint8_t)(Params.OriginalCount);
 
     // Unrolling k = 0 just makes it slower for some reason.
     for (int k = 0; k < N - 1; ++k)
@@ -457,17 +459,17 @@ void CM256Decoder::Decode()
     const int N = RecoveryCount;
 
     // Start the x_0 values arbitrarily from the original count.
-    const uint8_t x_0 = static_cast<uint8_t>(Params.OriginalCount);
+    const uint8_t x_0 = (uint8_t)(Params.OriginalCount);
 
     // Eliminate original data from the the recovery rows
     for (int originalIndex = 0; originalIndex < OriginalCount; ++originalIndex)
     {
-        const uint8_t* inBlock = static_cast<const uint8_t*>(Original[originalIndex]->Block);
+        const uint8_t* inBlock = (const uint8_t*)(Original[originalIndex]->Block);
         const uint8_t inRow = Original[originalIndex]->Index;
 
         for (int recoveryIndex = 0; recoveryIndex < N; ++recoveryIndex)
         {
-            uint8_t* outBlock = static_cast<uint8_t*>(Recovery[recoveryIndex]->Block);
+            uint8_t* outBlock = (uint8_t*)(Recovery[recoveryIndex]->Block);
             const uint8_t x_i = Recovery[recoveryIndex]->Index;
             const uint8_t y_j = inRow;
             const uint8_t matrixElement = GetMatrixElement(x_i, x_0, y_j);
@@ -551,7 +553,7 @@ void CM256Decoder::Decode()
     delete[] dynamicMatrix;
 }
 
-extern "C" int cm256_decode(
+extern int cm256_decode(
     cm256_encoder_params params, // Encoder params
     cm256_block* blocks)         // Array of 'originalCount' blocks as described above
 {

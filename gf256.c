@@ -28,6 +28,7 @@
 */
 
 #include "gf256.h"
+#include <stdbool.h>
 
 #ifdef LINUX_ARM
 #include <unistd.h>
@@ -35,6 +36,10 @@
 #include <elf.h>
 #include <linux/auxvec.h>
 #endif
+
+#define kTestBufferBytes 63
+#define kTestBufferAllocated 64
+#define GF256_GEN_POLY_COUNT 16
 
 //------------------------------------------------------------------------------
 // Workaround for ARMv7 that doesn't provide vqtbl1_*
@@ -60,26 +65,24 @@ static GF256_FORCE_INLINE uint8x16_t vqtbl1q_u8(uint8x16_t a, uint8x16_t b)
 //
 // This is executed during initialization to make sure the library is working
 
-static const unsigned kTestBufferBytes = 32 + 16 + 8 + 4 + 2 + 1;
-static const unsigned kTestBufferAllocated = 64;
-struct SelfTestBuffersT
-{
+typedef struct {
     GF256_ALIGNED uint8_t A[kTestBufferAllocated];
     GF256_ALIGNED uint8_t B[kTestBufferAllocated];
     GF256_ALIGNED uint8_t C[kTestBufferAllocated];
-};
+}SelfTestBuffersT;
+
 static GF256_ALIGNED SelfTestBuffersT m_SelfTestBuffers;
 
-static bool gf256_self_test()
+static int gf256_self_test()
 {
     if ((uintptr_t)m_SelfTestBuffers.A % GF256_ALIGN_BYTES != 0)
-        return false;
+        return -1;
     if ((uintptr_t)m_SelfTestBuffers.A % GF256_ALIGN_BYTES != 0)
-        return false;
+        return -1;
     if ((uintptr_t)m_SelfTestBuffers.B % GF256_ALIGN_BYTES != 0)
-        return false;
+        return -1;
     if ((uintptr_t)m_SelfTestBuffers.C % GF256_ALIGN_BYTES != 0)
-        return false;
+        return -1;
 
     // Check multiplication/division
     for (unsigned i = 0; i < 256; ++i)
@@ -91,15 +94,15 @@ static bool gf256_self_test()
             {
                 uint8_t div1 = gf256_div(prod, (uint8_t)i);
                 if (div1 != j)
-                    return false;
+                    return -1;
                 uint8_t div2 = gf256_div(prod, (uint8_t)j);
                 if (div2 != i)
-                    return false;
+                    return -1;
             }
             else if (prod != 0)
-                return false;
+                return -1;
             if (j == 1 && prod != i)
-                return false;
+                return -1;
         }
     }
 
@@ -117,7 +120,7 @@ static bool gf256_self_test()
     gf256_add_mem(m_SelfTestBuffers.A, m_SelfTestBuffers.B, kTestBufferBytes);
     for (unsigned i = 0; i < kTestBufferBytes; ++i)
         if (m_SelfTestBuffers.A[i] != (0x1f ^ 0xf7))
-            return false;
+            return -1;
 
     // Test gf256_add2_mem()
     for (unsigned i = 0; i < kTestBufferBytes; ++i)
@@ -129,7 +132,7 @@ static bool gf256_self_test()
     gf256_add2_mem(m_SelfTestBuffers.A, m_SelfTestBuffers.B, m_SelfTestBuffers.C, kTestBufferBytes);
     for (unsigned i = 0; i < kTestBufferBytes; ++i)
         if (m_SelfTestBuffers.A[i] != (0x1f ^ 0xf7 ^ 0x71))
-            return false;
+            return -1;
 
     // Test gf256_addset_mem()
     for (unsigned i = 0; i < kTestBufferBytes; ++i)
@@ -141,7 +144,7 @@ static bool gf256_self_test()
     gf256_addset_mem(m_SelfTestBuffers.A, m_SelfTestBuffers.B, m_SelfTestBuffers.C, kTestBufferBytes);
     for (unsigned i = 0; i < kTestBufferBytes; ++i)
         if (m_SelfTestBuffers.A[i] != (0xaa ^ 0x6c))
-            return false;
+            return -1;
 
     // Test gf256_muladd_mem()
     for (unsigned i = 0; i < kTestBufferBytes; ++i)
@@ -153,7 +156,7 @@ static bool gf256_self_test()
     gf256_muladd_mem(m_SelfTestBuffers.A, 0x6c, m_SelfTestBuffers.B, kTestBufferBytes);
     for (unsigned i = 0; i < kTestBufferBytes; ++i)
         if (m_SelfTestBuffers.A[i] != (expectedMulAdd ^ 0xff))
-            return false;
+            return -1;
 
     // Test gf256_mul_mem()
     for (unsigned i = 0; i < kTestBufferBytes; ++i)
@@ -165,16 +168,16 @@ static bool gf256_self_test()
     gf256_mul_mem(m_SelfTestBuffers.A, m_SelfTestBuffers.B, 0xa2, kTestBufferBytes);
     for (unsigned i = 0; i < kTestBufferBytes; ++i)
         if (m_SelfTestBuffers.A[i] != expectedMul)
-            return false;
+            return -1;
 
     if (m_SelfTestBuffers.A[kTestBufferBytes] != 0x5a)
-        return false;
+        return -1;
     if (m_SelfTestBuffers.B[kTestBufferBytes] != 0x5a)
-        return false;
+        return -1;
     if (m_SelfTestBuffers.C[kTestBufferBytes] != 0x5a)
-        return false;
+        return -1;
 
-    return true;
+    return 0;
 }
 
 
@@ -343,7 +346,6 @@ static bool Initialized = false;
 // Generator Polynomial
 
 // There are only 16 irreducible polynomials for GF(2^^8)
-static const int GF256_GEN_POLY_COUNT = 16;
 static const uint8_t GF256_GEN_POLY[GF256_GEN_POLY_COUNT] = {
     0x8e, 0x95, 0x96, 0xa6, 0xaf, 0xb1, 0xb2, 0xb4,
     0xb8, 0xc3, 0xc6, 0xd4, 0xe1, 0xe7, 0xf3, 0xfa
@@ -379,8 +381,8 @@ static void gf256_explog_init()
         if (next >= 256)
             next ^= poly;
 
-        exptab[jj] = static_cast<uint8_t>( next );
-        logtab[exptab[jj]] = static_cast<uint16_t>( jj );
+        exptab[jj] = (uint8_t)( next );
+        logtab[exptab[jj]] = (uint16_t)( jj );
     }
     exptab[255] = exptab[0];
     logtab[exptab[255]] = 255;
@@ -410,7 +412,7 @@ static void gf256_muldiv_init()
     for (int y = 1; y < 256; ++y)
     {
         // Calculate log(y) for mult and 255 - log(y) for div
-        const uint8_t log_y = static_cast<uint8_t>(GF256Ctx.GF256_LOG_TABLE[y]);
+        const uint8_t log_y = (uint8_t)(GF256Ctx.GF256_LOG_TABLE[y]);
         const uint8_t log_yn = 255 - log_y;
 
         // Next subtable
@@ -438,7 +440,7 @@ static void gf256_muldiv_init()
 static void gf256_inv_init()
 {
     for (int x = 0; x < 256; ++x)
-        GF256Ctx.GF256_INV_TABLE[x] = gf256_div(1, static_cast<uint8_t>(x));
+        GF256Ctx.GF256_INV_TABLE[x] = gf256_div(1, (uint8_t)(x));
 }
 
 
@@ -449,7 +451,7 @@ static void gf256_inv_init()
 static void gf256_sqr_init()
 {
     for (int x = 0; x < 256; ++x)
-        GF256Ctx.GF256_SQR_TABLE[x] = gf256_mul(static_cast<uint8_t>(x), static_cast<uint8_t>(x));
+        GF256Ctx.GF256_SQR_TABLE[x] = gf256_mul((uint8_t)(x), (uint8_t)(x));
 }
 
 
@@ -556,8 +558,8 @@ static void gf256_mul_mem_init()
         // TABLE_LO_Y maps 0..15 to 8-bit partial product based on y.
         for (unsigned char x = 0; x < 16; ++x)
         {
-            lo[x] = gf256_mul(x, static_cast<uint8_t>( y ));
-            hi[x] = gf256_mul(x << 4, static_cast<uint8_t>( y ));
+            lo[x] = gf256_mul(x, (uint8_t)( y ));
+            hi[x] = gf256_mul(x << 4, (uint8_t)( y ));
         }
 
 #if defined(GF256_TRY_NEON)
@@ -590,11 +592,11 @@ static void gf256_mul_mem_init()
 
 static unsigned char kLittleEndianTestData[4] = { 4, 3, 2, 1 };
 
-union UnionType
+typedef union
 {
     uint32_t IntValue;
     char CharArray[4];
-};
+}UnionType;
 
 static bool IsLittleEndian()
 {
@@ -604,7 +606,7 @@ static bool IsLittleEndian()
     return 0x01020304 == type.IntValue;
 }
 
-extern "C" int gf256_init_(int version)
+extern int gf256_init_(int version)
 {
     if (version != GF256_VERSION)
         return -1; // User's header does not match library version.
@@ -635,11 +637,11 @@ extern "C" int gf256_init_(int version)
 //------------------------------------------------------------------------------
 // Operations
 
-extern "C" void gf256_add_mem(void * GF256_RESTRICT vx,
+extern void gf256_add_mem(void * GF256_RESTRICT vx,
                               const void * GF256_RESTRICT vy, int bytes)
 {
-    GF256_M128 * GF256_RESTRICT x16 = reinterpret_cast<GF256_M128 *>(vx);
-    const GF256_M128 * GF256_RESTRICT y16 = reinterpret_cast<const GF256_M128 *>(vy);
+    GF256_M128 * GF256_RESTRICT x16 = (GF256_M128 *)(vx);
+    const GF256_M128 * GF256_RESTRICT y16 = (const GF256_M128 *)(vy);
 
 #if defined(GF256_TARGET_MOBILE)
 # if defined(GF256_TRY_NEON)
@@ -679,15 +681,15 @@ extern "C" void gf256_add_mem(void * GF256_RESTRICT vx,
     else
 # endif // GF256_TRY_NEON
     {
-        uint64_t * GF256_RESTRICT x8 = reinterpret_cast<uint64_t *>(x16);
-        const uint64_t * GF256_RESTRICT y8 = reinterpret_cast<const uint64_t *>(y16);
+        uint64_t * GF256_RESTRICT x8 = (uint64_t *)(x16);
+        const uint64_t * GF256_RESTRICT y8 = (const uint64_t *)(y16);
 
         const unsigned count = (unsigned)bytes / 8;
         for (unsigned ii = 0; ii < count; ++ii)
             x8[ii] ^= y8[ii];
 
-        x16 = reinterpret_cast<GF256_M128 *>(x8 + count);
-        y16 = reinterpret_cast<const GF256_M128 *>(y8 + count);
+        x16 = (GF256_M128 *)(x8 + count);
+        y16 = (const GF256_M128 *)(y8 + count);
 
         bytes -= (count * 8);
     }
@@ -695,8 +697,8 @@ extern "C" void gf256_add_mem(void * GF256_RESTRICT vx,
 # if defined(GF256_TRY_AVX2)
     if (CpuHasAVX2)
     {
-        GF256_M256 * GF256_RESTRICT x32 = reinterpret_cast<GF256_M256 *>(x16);
-        const GF256_M256 * GF256_RESTRICT y32 = reinterpret_cast<const GF256_M256 *>(y16);
+        GF256_M256 * GF256_RESTRICT x32 = (GF256_M256 *)(x16);
+        const GF256_M256 * GF256_RESTRICT y32 = (const GF256_M256 *)(y16);
 
         while (bytes >= 128)
         {
@@ -733,8 +735,8 @@ extern "C" void gf256_add_mem(void * GF256_RESTRICT vx,
             bytes -= 32, ++x32, ++y32;
         }
 
-        x16 = reinterpret_cast<GF256_M128 *>(x32);
-        y16 = reinterpret_cast<const GF256_M128 *>(y32);
+        x16 = (GF256_M128 *)(x32);
+        y16 = (const GF256_M128 *)(y32);
     }
     else
 # endif // GF256_TRY_AVX2
@@ -778,15 +780,15 @@ extern "C" void gf256_add_mem(void * GF256_RESTRICT vx,
     }
 #endif
 
-    uint8_t * GF256_RESTRICT x1 = reinterpret_cast<uint8_t *>(x16);
-    const uint8_t * GF256_RESTRICT y1 = reinterpret_cast<const uint8_t *>(y16);
+    uint8_t * GF256_RESTRICT x1 = (uint8_t *)(x16);
+    const uint8_t * GF256_RESTRICT y1 = (const uint8_t *)(y16);
 
     // Handle a block of 8 bytes
     const int eight = bytes & 8;
     if (eight)
     {
-        uint64_t * GF256_RESTRICT x8 = reinterpret_cast<uint64_t *>(x1);
-        const uint64_t * GF256_RESTRICT y8 = reinterpret_cast<const uint64_t *>(y1);
+        uint64_t * GF256_RESTRICT x8 = (uint64_t *)(x1);
+        const uint64_t * GF256_RESTRICT y8 = (const uint64_t *)(y1);
         *x8 ^= *y8;
     }
 
@@ -794,8 +796,8 @@ extern "C" void gf256_add_mem(void * GF256_RESTRICT vx,
     const int four = bytes & 4;
     if (four)
     {
-        uint32_t * GF256_RESTRICT x4 = reinterpret_cast<uint32_t *>(x1 + eight);
-        const uint32_t * GF256_RESTRICT y4 = reinterpret_cast<const uint32_t *>(y1 + eight);
+        uint32_t * GF256_RESTRICT x4 = (uint32_t *)(x1 + eight);
+        const uint32_t * GF256_RESTRICT y4 = (const uint32_t *)(y1 + eight);
         *x4 ^= *y4;
     }
 
@@ -811,12 +813,12 @@ extern "C" void gf256_add_mem(void * GF256_RESTRICT vx,
     }
 }
 
-extern "C" void gf256_add2_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT vx,
+extern void gf256_add2_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT vx,
                                const void * GF256_RESTRICT vy, int bytes)
 {
-    GF256_M128 * GF256_RESTRICT z16 = reinterpret_cast<GF256_M128*>(vz);
-    const GF256_M128 * GF256_RESTRICT x16 = reinterpret_cast<const GF256_M128*>(vx);
-    const GF256_M128 * GF256_RESTRICT y16 = reinterpret_cast<const GF256_M128*>(vy);
+    GF256_M128 * GF256_RESTRICT z16 = (GF256_M128*)(vz);
+    const GF256_M128 * GF256_RESTRICT x16 = (const GF256_M128*)(vx);
+    const GF256_M128 * GF256_RESTRICT y16 = (const GF256_M128*)(vy);
 
 #if defined(GF256_TARGET_MOBILE)
 # if defined(GF256_TRY_NEON)
@@ -840,17 +842,17 @@ extern "C" void gf256_add2_mem(void * GF256_RESTRICT vz, const void * GF256_REST
     else
 # endif // GF256_TRY_NEON
     {
-        uint64_t * GF256_RESTRICT z8 = reinterpret_cast<uint64_t *>(z16);
-        const uint64_t * GF256_RESTRICT x8 = reinterpret_cast<const uint64_t *>(x16);
-        const uint64_t * GF256_RESTRICT y8 = reinterpret_cast<const uint64_t *>(y16);
+        uint64_t * GF256_RESTRICT z8 = (uint64_t *)(z16);
+        const uint64_t * GF256_RESTRICT x8 = (const uint64_t *)(x16);
+        const uint64_t * GF256_RESTRICT y8 = (const uint64_t *)(y16);
 
         const unsigned count = (unsigned)bytes / 8;
         for (unsigned ii = 0; ii < count; ++ii)
             z8[ii] ^= x8[ii] ^ y8[ii];
 
-        z16 = reinterpret_cast<GF256_M128 *>(z8 + count);
-        x16 = reinterpret_cast<const GF256_M128 *>(x8 + count);
-        y16 = reinterpret_cast<const GF256_M128 *>(y8 + count);
+        z16 = (GF256_M128 *)(z8 + count);
+        x16 = (const GF256_M128 *)(x8 + count);
+        y16 = (const GF256_M128 *)(y8 + count);
 
         bytes -= (count * 8);
     }
@@ -858,9 +860,9 @@ extern "C" void gf256_add2_mem(void * GF256_RESTRICT vz, const void * GF256_REST
 # if defined(GF256_TRY_AVX2)
     if (CpuHasAVX2)
     {
-        GF256_M256 * GF256_RESTRICT z32 = reinterpret_cast<GF256_M256 *>(z16);
-        const GF256_M256 * GF256_RESTRICT x32 = reinterpret_cast<const GF256_M256 *>(x16);
-        const GF256_M256 * GF256_RESTRICT y32 = reinterpret_cast<const GF256_M256 *>(y16);
+        GF256_M256 * GF256_RESTRICT z32 = (GF256_M256 *)(z16);
+        const GF256_M256 * GF256_RESTRICT x32 = (const GF256_M256 *)(x16);
+        const GF256_M256 * GF256_RESTRICT y32 = (const GF256_M256 *)(y16);
 
         const unsigned count = bytes / 32;
         for (unsigned i = 0; i < count; ++i)
@@ -874,9 +876,9 @@ extern "C" void gf256_add2_mem(void * GF256_RESTRICT vz, const void * GF256_REST
         }
 
         bytes -= count * 32;
-        z16 = reinterpret_cast<GF256_M128 *>(z32 + count);
-        x16 = reinterpret_cast<const GF256_M128 *>(x32 + count);
-        y16 = reinterpret_cast<const GF256_M128 *>(y32 + count);
+        z16 = (GF256_M128 *)(z32 + count);
+        x16 = (const GF256_M128 *)(x32 + count);
+        y16 = (const GF256_M128 *)(y32 + count);
     }
 # endif // GF256_TRY_AVX2
 
@@ -895,17 +897,17 @@ extern "C" void gf256_add2_mem(void * GF256_RESTRICT vz, const void * GF256_REST
     }
 #endif // GF256_TARGET_MOBILE
 
-    uint8_t * GF256_RESTRICT z1 = reinterpret_cast<uint8_t *>(z16);
-    const uint8_t * GF256_RESTRICT x1 = reinterpret_cast<const uint8_t *>(x16);
-    const uint8_t * GF256_RESTRICT y1 = reinterpret_cast<const uint8_t *>(y16);
+    uint8_t * GF256_RESTRICT z1 = (uint8_t *)(z16);
+    const uint8_t * GF256_RESTRICT x1 = (const uint8_t *)(x16);
+    const uint8_t * GF256_RESTRICT y1 = (const uint8_t *)(y16);
 
     // Handle a block of 8 bytes
     const int eight = bytes & 8;
     if (eight)
     {
-        uint64_t * GF256_RESTRICT z8 = reinterpret_cast<uint64_t *>(z1);
-        const uint64_t * GF256_RESTRICT x8 = reinterpret_cast<const uint64_t *>(x1);
-        const uint64_t * GF256_RESTRICT y8 = reinterpret_cast<const uint64_t *>(y1);
+        uint64_t * GF256_RESTRICT z8 = (uint64_t *)(z1);
+        const uint64_t * GF256_RESTRICT x8 = (const uint64_t *)(x1);
+        const uint64_t * GF256_RESTRICT y8 = (const uint64_t *)(y1);
         *z8 ^= *x8 ^ *y8;
     }
 
@@ -913,9 +915,9 @@ extern "C" void gf256_add2_mem(void * GF256_RESTRICT vz, const void * GF256_REST
     const int four = bytes & 4;
     if (four)
     {
-        uint32_t * GF256_RESTRICT z4 = reinterpret_cast<uint32_t *>(z1 + eight);
-        const uint32_t * GF256_RESTRICT x4 = reinterpret_cast<const uint32_t *>(x1 + eight);
-        const uint32_t * GF256_RESTRICT y4 = reinterpret_cast<const uint32_t *>(y1 + eight);
+        uint32_t * GF256_RESTRICT z4 = (uint32_t *)(z1 + eight);
+        const uint32_t * GF256_RESTRICT x4 = (const uint32_t *)(x1 + eight);
+        const uint32_t * GF256_RESTRICT y4 = (const uint32_t *)(y1 + eight);
         *z4 ^= *x4 ^ *y4;
     }
 
@@ -931,12 +933,12 @@ extern "C" void gf256_add2_mem(void * GF256_RESTRICT vz, const void * GF256_REST
     }
 }
 
-extern "C" void gf256_addset_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT vx,
+extern void gf256_addset_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT vx,
                                  const void * GF256_RESTRICT vy, int bytes)
 {
-    GF256_M128 * GF256_RESTRICT z16 = reinterpret_cast<GF256_M128*>(vz);
-    const GF256_M128 * GF256_RESTRICT x16 = reinterpret_cast<const GF256_M128*>(vx);
-    const GF256_M128 * GF256_RESTRICT y16 = reinterpret_cast<const GF256_M128*>(vy);
+    GF256_M128 * GF256_RESTRICT z16 = (GF256_M128*)(vz);
+    const GF256_M128 * GF256_RESTRICT x16 = (const GF256_M128*)(vx);
+    const GF256_M128 * GF256_RESTRICT y16 = (const GF256_M128*)(vy);
 
 #if defined(GF256_TARGET_MOBILE)
 # if defined(GF256_TRY_NEON)
@@ -977,17 +979,17 @@ extern "C" void gf256_addset_mem(void * GF256_RESTRICT vz, const void * GF256_RE
     else
 # endif // GF256_TRY_NEON
     {
-        uint64_t * GF256_RESTRICT z8 = reinterpret_cast<uint64_t *>(z16);
-        const uint64_t * GF256_RESTRICT x8 = reinterpret_cast<const uint64_t *>(x16);
-        const uint64_t * GF256_RESTRICT y8 = reinterpret_cast<const uint64_t *>(y16);
+        uint64_t * GF256_RESTRICT z8 = (uint64_t *)(z16);
+        const uint64_t * GF256_RESTRICT x8 = (const uint64_t *)(x16);
+        const uint64_t * GF256_RESTRICT y8 = (const uint64_t *)(y16);
 
         const unsigned count = (unsigned)bytes / 8;
         for (unsigned ii = 0; ii < count; ++ii)
             z8[ii] = x8[ii] ^ y8[ii];
 
-        x16 = reinterpret_cast<const GF256_M128 *>(x8 + count);
-        y16 = reinterpret_cast<const GF256_M128 *>(y8 + count);
-        z16 = reinterpret_cast<GF256_M128 *>(z8 + count);
+        x16 = (const GF256_M128 *)(x8 + count);
+        y16 = (const GF256_M128 *)(y8 + count);
+        z16 = (GF256_M128 *)(z8 + count);
 
         bytes -= (count * 8);
     }
@@ -995,9 +997,9 @@ extern "C" void gf256_addset_mem(void * GF256_RESTRICT vz, const void * GF256_RE
 # if defined(GF256_TRY_AVX2)
     if (CpuHasAVX2)
     {
-        GF256_M256 * GF256_RESTRICT z32 = reinterpret_cast<GF256_M256 *>(z16);
-        const GF256_M256 * GF256_RESTRICT x32 = reinterpret_cast<const GF256_M256 *>(x16);
-        const GF256_M256 * GF256_RESTRICT y32 = reinterpret_cast<const GF256_M256 *>(y16);
+        GF256_M256 * GF256_RESTRICT z32 = (GF256_M256 *)(z16);
+        const GF256_M256 * GF256_RESTRICT x32 = (const GF256_M256 *)(x16);
+        const GF256_M256 * GF256_RESTRICT y32 = (const GF256_M256 *)(y16);
 
         const unsigned count = bytes / 32;
         for (unsigned i = 0; i < count; ++i)
@@ -1009,9 +1011,9 @@ extern "C" void gf256_addset_mem(void * GF256_RESTRICT vz, const void * GF256_RE
         }
 
         bytes -= count * 32;
-        z16 = reinterpret_cast<GF256_M128 *>(z32 + count);
-        x16 = reinterpret_cast<const GF256_M128 *>(x32 + count);
-        y16 = reinterpret_cast<const GF256_M128 *>(y32 + count);
+        z16 = (GF256_M128 *)(z32 + count);
+        x16 = (const GF256_M128 *)(x32 + count);
+        y16 = (const GF256_M128 *)(y32 + count);
     }
     else
 # endif // GF256_TRY_AVX2
@@ -1050,17 +1052,17 @@ extern "C" void gf256_addset_mem(void * GF256_RESTRICT vz, const void * GF256_RE
     }
 #endif // GF256_TARGET_MOBILE
 
-    uint8_t * GF256_RESTRICT z1 = reinterpret_cast<uint8_t *>(z16);
-    const uint8_t * GF256_RESTRICT x1 = reinterpret_cast<const uint8_t *>(x16);
-    const uint8_t * GF256_RESTRICT y1 = reinterpret_cast<const uint8_t *>(y16);
+    uint8_t * GF256_RESTRICT z1 = (uint8_t *)(z16);
+    const uint8_t * GF256_RESTRICT x1 = (const uint8_t *)(x16);
+    const uint8_t * GF256_RESTRICT y1 = (const uint8_t *)(y16);
 
     // Handle a block of 8 bytes
     const int eight = bytes & 8;
     if (eight)
     {
-        uint64_t * GF256_RESTRICT z8 = reinterpret_cast<uint64_t *>(z1);
-        const uint64_t * GF256_RESTRICT x8 = reinterpret_cast<const uint64_t *>(x1);
-        const uint64_t * GF256_RESTRICT y8 = reinterpret_cast<const uint64_t *>(y1);
+        uint64_t * GF256_RESTRICT z8 = (uint64_t *)(z1);
+        const uint64_t * GF256_RESTRICT x8 = (const uint64_t *)(x1);
+        const uint64_t * GF256_RESTRICT y8 = (const uint64_t *)(y1);
         *z8 = *x8 ^ *y8;
     }
 
@@ -1068,9 +1070,9 @@ extern "C" void gf256_addset_mem(void * GF256_RESTRICT vz, const void * GF256_RE
     const int four = bytes & 4;
     if (four)
     {
-        uint32_t * GF256_RESTRICT z4 = reinterpret_cast<uint32_t *>(z1 + eight);
-        const uint32_t * GF256_RESTRICT x4 = reinterpret_cast<const uint32_t *>(x1 + eight);
-        const uint32_t * GF256_RESTRICT y4 = reinterpret_cast<const uint32_t *>(y1 + eight);
+        uint32_t * GF256_RESTRICT z4 = (uint32_t *)(z1 + eight);
+        const uint32_t * GF256_RESTRICT x4 = (const uint32_t *)(x1 + eight);
+        const uint32_t * GF256_RESTRICT y4 = (const uint32_t *)(y1 + eight);
         *z4 = *x4 ^ *y4;
     }
 
@@ -1086,7 +1088,7 @@ extern "C" void gf256_addset_mem(void * GF256_RESTRICT vz, const void * GF256_RE
     }
 }
 
-extern "C" void gf256_mul_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT vx, uint8_t y, int bytes)
+extern void gf256_mul_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT vx, uint8_t y, int bytes)
 {
     // Use a single if-statement to handle special cases
     if (y <= 1)
@@ -1098,8 +1100,8 @@ extern "C" void gf256_mul_mem(void * GF256_RESTRICT vz, const void * GF256_RESTR
         return;
     }
 
-    GF256_M128 * GF256_RESTRICT z16 = reinterpret_cast<GF256_M128 *>(vz);
-    const GF256_M128 * GF256_RESTRICT x16 = reinterpret_cast<const GF256_M128 *>(vx);
+    GF256_M128 * GF256_RESTRICT z16 = (GF256_M128 *)(vz);
+    const GF256_M128 * GF256_RESTRICT x16 = (const GF256_M128 *)(vx);
 
 #if defined(GF256_TARGET_MOBILE)
 #if defined(GF256_TRY_NEON)
@@ -1139,8 +1141,8 @@ extern "C" void gf256_mul_mem(void * GF256_RESTRICT vz, const void * GF256_RESTR
         // clr_mask = 0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f
         const GF256_M256 clr_mask = _mm256_set1_epi8(0x0f);
 
-        GF256_M256 * GF256_RESTRICT z32 = reinterpret_cast<GF256_M256 *>(vz);
-        const GF256_M256 * GF256_RESTRICT x32 = reinterpret_cast<const GF256_M256 *>(vx);
+        GF256_M256 * GF256_RESTRICT z32 = (GF256_M256 *)(vz);
+        const GF256_M256 * GF256_RESTRICT x32 = (const GF256_M256 *)(vx);
 
         // Handle multiples of 32 bytes
         do
@@ -1157,8 +1159,8 @@ extern "C" void gf256_mul_mem(void * GF256_RESTRICT vz, const void * GF256_RESTR
             bytes -= 32, ++x32, ++z32;
         } while (bytes >= 32);
 
-        z16 = reinterpret_cast<GF256_M128 *>(z32);
-        x16 = reinterpret_cast<const GF256_M128 *>(x32);
+        z16 = (GF256_M128 *)(z32);
+        x16 = (const GF256_M128 *)(x32);
     }
 # endif // GF256_TRY_AVX2
     if (bytes >= 16 && CpuHasSSSE3)
@@ -1187,14 +1189,14 @@ extern "C" void gf256_mul_mem(void * GF256_RESTRICT vz, const void * GF256_RESTR
     }
 #endif
 
-    uint8_t * GF256_RESTRICT z1 = reinterpret_cast<uint8_t*>(z16);
-    const uint8_t * GF256_RESTRICT x1 = reinterpret_cast<const uint8_t*>(x16);
+    uint8_t * GF256_RESTRICT z1 = (uint8_t*)(z16);
+    const uint8_t * GF256_RESTRICT x1 = (const uint8_t*)(x16);
     const uint8_t * GF256_RESTRICT table = GF256Ctx.GF256_MUL_TABLE + ((unsigned)y << 8);
 
     // Handle blocks of 8 bytes
     while (bytes >= 8)
     {
-        uint64_t * GF256_RESTRICT z8 = reinterpret_cast<uint64_t *>(z1);
+        uint64_t * GF256_RESTRICT z8 = (uint64_t *)(z1);
         uint64_t word = table[x1[0]];
         word |= (uint64_t)table[x1[1]] << 8;
         word |= (uint64_t)table[x1[2]] << 16;
@@ -1212,7 +1214,7 @@ extern "C" void gf256_mul_mem(void * GF256_RESTRICT vz, const void * GF256_RESTR
     const int four = bytes & 4;
     if (four)
     {
-        uint32_t * GF256_RESTRICT z4 = reinterpret_cast<uint32_t *>(z1);
+        uint32_t * GF256_RESTRICT z4 = (uint32_t *)(z1);
         uint32_t word = table[x1[0]];
         word |= (uint32_t)table[x1[1]] << 8;
         word |= (uint32_t)table[x1[2]] << 16;
@@ -1232,7 +1234,7 @@ extern "C" void gf256_mul_mem(void * GF256_RESTRICT vz, const void * GF256_RESTR
     }
 }
 
-extern "C" void gf256_muladd_mem(void * GF256_RESTRICT vz, uint8_t y,
+extern void gf256_muladd_mem(void * GF256_RESTRICT vz, uint8_t y,
                                  const void * GF256_RESTRICT vx, int bytes)
 {
     // Use a single if-statement to handle special cases
@@ -1243,8 +1245,8 @@ extern "C" void gf256_muladd_mem(void * GF256_RESTRICT vz, uint8_t y,
         return;
     }
 
-    GF256_M128 * GF256_RESTRICT z16 = reinterpret_cast<GF256_M128 *>(vz);
-    const GF256_M128 * GF256_RESTRICT x16 = reinterpret_cast<const GF256_M128 *>(vx);
+    GF256_M128 * GF256_RESTRICT z16 = (GF256_M128 *)(vz);
+    const GF256_M128 * GF256_RESTRICT x16 = (const GF256_M128 *)(vx);
 
 #if defined(GF256_TARGET_MOBILE)
 #if defined(GF256_TRY_NEON)
@@ -1287,8 +1289,8 @@ extern "C" void gf256_muladd_mem(void * GF256_RESTRICT vz, uint8_t y,
         // clr_mask = 0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f
         const GF256_M256 clr_mask = _mm256_set1_epi8(0x0f);
 
-        GF256_M256 * GF256_RESTRICT z32 = reinterpret_cast<GF256_M256 *>(z16);
-        const GF256_M256 * GF256_RESTRICT x32 = reinterpret_cast<const GF256_M256 *>(x16);
+        GF256_M256 * GF256_RESTRICT z32 = (GF256_M256 *)(z16);
+        const GF256_M256 * GF256_RESTRICT x32 = (const GF256_M256 *)(x16);
 
         // On my Reed Solomon codec, the encoder unit test runs in 640 usec without and 550 usec with the optimization (86% of the original time)
         const unsigned count = bytes / 64;
@@ -1336,8 +1338,8 @@ extern "C" void gf256_muladd_mem(void * GF256_RESTRICT vz, uint8_t y,
             x32++;
         }
 
-        z16 = reinterpret_cast<GF256_M128 *>(z32);
-        x16 = reinterpret_cast<const GF256_M128 *>(x32);
+        z16 = (GF256_M128 *)(z32);
+        x16 = (const GF256_M128 *)(x32);
     }
 # endif // GF256_TRY_AVX2
     if (bytes >= 16 && CpuHasSSSE3)
@@ -1398,14 +1400,14 @@ extern "C" void gf256_muladd_mem(void * GF256_RESTRICT vz, uint8_t y,
     }
 #endif // GF256_TARGET_MOBILE
 
-    uint8_t * GF256_RESTRICT z1 = reinterpret_cast<uint8_t*>(z16);
-    const uint8_t * GF256_RESTRICT x1 = reinterpret_cast<const uint8_t*>(x16);
+    uint8_t * GF256_RESTRICT z1 = (uint8_t*)(z16);
+    const uint8_t * GF256_RESTRICT x1 = (const uint8_t*)(x16);
     const uint8_t * GF256_RESTRICT table = GF256Ctx.GF256_MUL_TABLE + ((unsigned)y << 8);
 
     // Handle blocks of 8 bytes
     while (bytes >= 8)
     {
-        uint64_t * GF256_RESTRICT z8 = reinterpret_cast<uint64_t *>(z1);
+        uint64_t * GF256_RESTRICT z8 = (uint64_t *)(z1);
         uint64_t word = table[x1[0]];
         word |= (uint64_t)table[x1[1]] << 8;
         word |= (uint64_t)table[x1[2]] << 16;
@@ -1423,7 +1425,7 @@ extern "C" void gf256_muladd_mem(void * GF256_RESTRICT vz, uint8_t y,
     const int four = bytes & 4;
     if (four)
     {
-        uint32_t * GF256_RESTRICT z4 = reinterpret_cast<uint32_t *>(z1);
+        uint32_t * GF256_RESTRICT z4 = (uint32_t *)(z1);
         uint32_t word = table[x1[0]];
         word |= (uint32_t)table[x1[1]] << 8;
         word |= (uint32_t)table[x1[2]] << 16;
@@ -1443,11 +1445,11 @@ extern "C" void gf256_muladd_mem(void * GF256_RESTRICT vz, uint8_t y,
     }
 }
 
-extern "C" void gf256_memswap(void * GF256_RESTRICT vx, void * GF256_RESTRICT vy, int bytes)
+extern void gf256_memswap(void * GF256_RESTRICT vx, void * GF256_RESTRICT vy, int bytes)
 {
 #if defined(GF256_TARGET_MOBILE)
-    uint64_t * GF256_RESTRICT x16 = reinterpret_cast<uint64_t *>(vx);
-    uint64_t * GF256_RESTRICT y16 = reinterpret_cast<uint64_t *>(vy);
+    uint64_t * GF256_RESTRICT x16 = (uint64_t *)(vx);
+    uint64_t * GF256_RESTRICT y16 = (uint64_t *)(vy);
 
     const unsigned count = (unsigned)bytes / 8;
     for (unsigned ii = 0; ii < count; ++ii)
@@ -1460,8 +1462,8 @@ extern "C" void gf256_memswap(void * GF256_RESTRICT vx, void * GF256_RESTRICT vy
     x16 += count;
     y16 += count;
 #else
-    GF256_M128 * GF256_RESTRICT x16 = reinterpret_cast<GF256_M128 *>(vx);
-    GF256_M128 * GF256_RESTRICT y16 = reinterpret_cast<GF256_M128 *>(vy);
+    GF256_M128 * GF256_RESTRICT x16 = (GF256_M128 *)(vx);
+    GF256_M128 * GF256_RESTRICT y16 = (GF256_M128 *)(vy);
 
     // Handle blocks of 16 bytes
     while (bytes >= 16)
@@ -1475,15 +1477,15 @@ extern "C" void gf256_memswap(void * GF256_RESTRICT vx, void * GF256_RESTRICT vy
     }
 #endif
 
-    uint8_t * GF256_RESTRICT x1 = reinterpret_cast<uint8_t *>(x16);
-    uint8_t * GF256_RESTRICT y1 = reinterpret_cast<uint8_t *>(y16);
+    uint8_t * GF256_RESTRICT x1 = (uint8_t *)(x16);
+    uint8_t * GF256_RESTRICT y1 = (uint8_t *)(y16);
 
     // Handle a block of 8 bytes
     const int eight = bytes & 8;
     if (eight)
     {
-        uint64_t * GF256_RESTRICT x8 = reinterpret_cast<uint64_t *>(x1);
-        uint64_t * GF256_RESTRICT y8 = reinterpret_cast<uint64_t *>(y1);
+        uint64_t * GF256_RESTRICT x8 = (uint64_t *)(x1);
+        uint64_t * GF256_RESTRICT y8 = (uint64_t *)(y1);
 
         uint64_t temp = *x8;
         *x8 = *y8;
@@ -1494,8 +1496,8 @@ extern "C" void gf256_memswap(void * GF256_RESTRICT vx, void * GF256_RESTRICT vy
     const int four = bytes & 4;
     if (four)
     {
-        uint32_t * GF256_RESTRICT x4 = reinterpret_cast<uint32_t *>(x1 + eight);
-        uint32_t * GF256_RESTRICT y4 = reinterpret_cast<uint32_t *>(y1 + eight);
+        uint32_t * GF256_RESTRICT x4 = (uint32_t *)(x1 + eight);
+        uint32_t * GF256_RESTRICT y4 = (uint32_t *)(y1 + eight);
 
         uint32_t temp = *x4;
         *x4 = *y4;

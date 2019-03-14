@@ -45,7 +45,7 @@
 */
 
 #include <stdint.h> // uint32_t etc
-#include <cstring> // memcpy, memset
+#include <string.h>
 
 /// Library header version
 #define GF256_VERSION 2
@@ -138,8 +138,7 @@ extern void gf256_memswap(void * GF256_RESTRICT vx, void * GF256_RESTRICT vy, in
 #endif // _MSC_VER
 
 /// The context object stores tables required to perform library calculations
-struct gf256_ctx
-{
+typedef struct{
     /// We require memory to be aligned since the SIMD instructions benefit from
     /// or require aligned accesses to the table data.
     struct
@@ -167,7 +166,7 @@ struct gf256_ctx
 
     /// Polynomial used
     unsigned Polynomial;
-};
+}gf256_ctx;
 
 #ifdef _MSC_VER
     #pragma warning(pop)
