@@ -94,16 +94,24 @@ static int gf256_self_test()
             if (i != 0 && j != 0)
             {
                 uint8_t div1 = gf256_div(prod, (uint8_t)i);
-                if (div1 != j)
+                if (div1 != j){
+		    printf("first division failed\n");
                     return -1;
+		}
                 uint8_t div2 = gf256_div(prod, (uint8_t)j);
-                if (div2 != i)
+                if (div2 != i){
+		    printf("second division failed\n");
                     return -1;
+		}
             }
-            else if (prod != 0)
+            else if (prod != 0){
+		printf("Product is not zero\n");
                 return -1;
-            if (j == 1 && prod != i)
+	    }
+            if (j == 1 && prod != i){
+		printf("Multiplication error\n");
                 return -1;
+	    }
         }
     }
 
@@ -120,8 +128,10 @@ static int gf256_self_test()
     }
     gf256_add_mem(m_SelfTestBuffers.A, m_SelfTestBuffers.B, kTestBufferBytes);
     for (unsigned i = 0; i < kTestBufferBytes; ++i)
-        if (m_SelfTestBuffers.A[i] != (0x1f ^ 0xf7))
+        if (m_SelfTestBuffers.A[i] != (0x1f ^ 0xf7)){
+	    printf("addition failure\n");
             return -1;
+	}
 
     // Test gf256_add2_mem()
     for (unsigned i = 0; i < kTestBufferBytes; ++i)
@@ -178,6 +188,7 @@ static int gf256_self_test()
     if (m_SelfTestBuffers.C[kTestBufferBytes] != 0x5a)
         return -1;
 
+    printf("Self test passed\n");
     return 0;
 }
 
@@ -634,7 +645,7 @@ extern int gf256_init_(int version)
     gf256_sqr_init();
     gf256_mul_mem_init();
 
-    if (!gf256_self_test()){
+    if (gf256_self_test()){
         printf("failed self test\n");
         return -3; // Self-test failed (perhaps untested configuration)
     }

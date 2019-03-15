@@ -65,8 +65,10 @@ int ExampleFileUsage()
     blocks[0].Index = cm256_get_recovery_block_index(params, 0); // First recovery block index
     //// Simulate loss of data, subsituting a recovery block in its place ////
 
-    if (cm256_decode(params, blocks))
+    int ret;
+    if (ret = cm256_decode(params, blocks))
     {
+	printf("decode failed %d \n", ret);
         return 1;
     }
 

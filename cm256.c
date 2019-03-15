@@ -252,7 +252,7 @@ typedef struct
     // Generate the LU decomposition of the matrix
 }CM256Decoder;
 
-bool Initialize(CM256Decoder *decoder, cm256_encoder_params params, cm256_block* blocks)
+int Initialize(CM256Decoder *decoder, cm256_encoder_params params, cm256_block* blocks)
 {
     decoder->Params = params;
 
@@ -280,7 +280,7 @@ bool Initialize(CM256Decoder *decoder, cm256_encoder_params params, cm256_block*
             {
                 // Error out if two row indices repeat
                 printf("indices incorrect\n");
-                return false;
+                return -1;
             }
 
             decoder->ErasuresIndices[row] = 1;
@@ -307,7 +307,7 @@ bool Initialize(CM256Decoder *decoder, cm256_encoder_params params, cm256_block*
 
     printf("finished\n");
 
-    return true;
+    return 0;
 }
 
 void DecodeM1(CM256Decoder *decoder)
