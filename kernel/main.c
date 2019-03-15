@@ -96,6 +96,8 @@ int ExampleFileUsage(void)
 	}
     }
 
+    printk(KERN_INFO "decode worked\n");
+
 
     kfree(originalFileData);
     kfree(filedatacopy);
@@ -105,6 +107,7 @@ int ExampleFileUsage(void)
 }
 
 static int __init km_template_init(void){
+    ExampleFileUsage();
     printk(KERN_INFO "Kernel Module inserted");
     return 0;
 }
