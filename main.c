@@ -9,10 +9,13 @@
 
 int ExampleFileUsage()
 {
+    printf("Initialize\n");
     if (cm256_init())
     {
+        printf("Initialization messed up\n");
         return 1;
     }
+    printf("initialized\n");
 
     cm256_encoder_params params;
 
@@ -39,6 +42,8 @@ int ExampleFileUsage()
         blocks[i].Block = originalFileData + i * params.BlockBytes;
     }
 
+    fprintf(stdout, "data generated\n");
+
     // Recovery data
     uint8_t* recoveryBlocks = malloc(params.RecoveryCount * params.BlockBytes);
 
@@ -47,6 +52,7 @@ int ExampleFileUsage()
     {
         return 1;
     }
+    printf("encoded\n");
 
     // Initialize the indices
     for (int i = 0; i < params.OriginalCount; ++i)
@@ -64,6 +70,8 @@ int ExampleFileUsage()
         return 1;
     }
 
+    printf("seems to have run\nmm");
+
     // blocks[0].Index will now be 0.
 
     free(originalFileData);
@@ -73,5 +81,8 @@ int ExampleFileUsage()
 }
 
 int main(){
+    if(ExampleFileUsage()){
+        printf("what the hell?\n");
+    }    
     return 0;
 }

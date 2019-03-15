@@ -82,6 +82,7 @@ extern int cm256_init_(int version)
     if (version != CM256_VERSION)
     {
         // User's header does not match library version
+        printf("AAAAHHHHH\n");
         return -10;
     }
 
@@ -278,6 +279,7 @@ bool Initialize(CM256Decoder *decoder, cm256_encoder_params params, cm256_block*
             if (decoder->ErasuresIndices[row] != 0)
             {
                 // Error out if two row indices repeat
+                printf("indices incorrect\n");
                 return false;
             }
 
@@ -302,6 +304,8 @@ bool Initialize(CM256Decoder *decoder, cm256_encoder_params params, cm256_block*
             }
         }
     }
+
+    printf("finished\n");
 
     return true;
 }

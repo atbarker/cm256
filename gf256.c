@@ -29,6 +29,7 @@
 
 #include "gf256.h"
 #include <stdbool.h>
+#include <stdio.h>
 
 #ifdef LINUX_ARM
 #include <unistd.h>
@@ -608,16 +609,22 @@ static bool IsLittleEndian()
 
 extern int gf256_init_(int version)
 {
-    if (version != GF256_VERSION)
+    if (version != GF256_VERSION){
+        printf("something wrong\n");
         return -1; // User's header does not match library version.
+    }
 
     // Avoid multiple initialization
-    if (Initialized)
+    if (Initialized){
+        printf("Already initialized\n");
         return 0;
+    }
     Initialized = true;
 
-    if (!IsLittleEndian())
+    if (!IsLittleEndian()){
+        printf("is it big endian?\n");
         return -2; // Architecture is not supported (code won't work without mods).
+    }
 
     gf256_architecture_init();
     gf256_poly_init(kDefaultPolynomialIndex);
@@ -627,8 +634,10 @@ extern int gf256_init_(int version)
     gf256_sqr_init();
     gf256_mul_mem_init();
 
-    if (!gf256_self_test())
+    if (!gf256_self_test()){
+        printf("failed self test\n");
         return -3; // Self-test failed (perhaps untested configuration)
+    }
 
     return 0;
 }
