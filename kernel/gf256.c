@@ -602,10 +602,12 @@ static void gf256_mul_mem_init(void)
 # ifdef GF256_TRY_AVX2
         if (CpuHasAVX2)
         {
+	    kernel_fpu_begin();
             const GF256_M256 table_lo2 = _mm256_broadcastsi128_si256(table_lo);
             const GF256_M256 table_hi2 = _mm256_broadcastsi128_si256(table_hi);
             _mm256_storeu_si256(GF256Ctx.MM256.TABLE_LO_Y + y, table_lo2);
             _mm256_storeu_si256(GF256Ctx.MM256.TABLE_HI_Y + y, table_hi2);
+	    kernel_fpu_end();
         }
 # endif // GF256_TRY_AVX2
 #endif // GF256_TARGET_MOBILE
@@ -741,6 +743,7 @@ extern void gf256_add_mem(void * GF256_RESTRICT vx,
 
         while (bytes >= 128)
         {
+            kernel_fpu_begin();
             GF256_M256 x0 = _mm256_loadu_si256(x32);
             GF256_M256 y0 = _mm256_loadu_si256(y32);
 	    GF256_M256 x1, y1, y2, y3, x2, x3;
@@ -760,6 +763,7 @@ extern void gf256_add_mem(void * GF256_RESTRICT vx,
             _mm256_storeu_si256(x32 + 2, x2);
             _mm256_storeu_si256(x32 + 3, x3);
 
+	    kernel_fpu_end();
             bytes -= 128, x32 += 4, y32 += 4;
         }
 
@@ -767,10 +771,12 @@ extern void gf256_add_mem(void * GF256_RESTRICT vx,
         while (bytes >= 32)
         {
             // x[i] = x[i] xor y[i]
+	    kernel_fpu_begin();
             _mm256_storeu_si256(x32,
                 _mm256_xor_si256(
                     _mm256_loadu_si256(x32),
                     _mm256_loadu_si256(y32)));
+	    kernel_fpu_end();
 
             bytes -= 32, ++x32, ++y32;
         }
@@ -783,6 +789,7 @@ extern void gf256_add_mem(void * GF256_RESTRICT vx,
     {
         while (bytes >= 64)
         {
+	    kernel_fpu_begin();
             GF256_M128 x0 = _mm_loadu_si128(x16);
             GF256_M128 y0 = _mm_loadu_si128(y16);
 	    GF256_M128 x1, x2, x3, y1, y2, y3;
@@ -802,6 +809,7 @@ extern void gf256_add_mem(void * GF256_RESTRICT vx,
             _mm_storeu_si128(x16 + 2, x2);
             _mm_storeu_si128(x16 + 3, x3);
 
+	    kernel_fpu_end();
             bytes -= 64, x16 += 4, y16 += 4;
         }
     }
@@ -812,11 +820,13 @@ extern void gf256_add_mem(void * GF256_RESTRICT vx,
     while (bytes >= 16)
     {
         // x[i] = x[i] xor y[i]
+	kernel_fpu_begin();
         _mm_storeu_si128(x16,
             _mm_xor_si128(
                 _mm_loadu_si128(x16),
                 _mm_loadu_si128(y16)));
 
+	kernel_fpu_end();
         bytes -= 16, ++x16, ++y16;
     }
 #endif
@@ -915,12 +925,14 @@ extern void gf256_add2_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT
         const unsigned count = bytes / 32;
         for (i = 0; i < count; ++i)
         {
+	    kernel_fpu_begin();
             _mm256_storeu_si256(z32 + i,
                 _mm256_xor_si256(
                     _mm256_loadu_si256(z32 + i),
                     _mm256_xor_si256(
                         _mm256_loadu_si256(x32 + i),
                         _mm256_loadu_si256(y32 + i))));
+	    kernel_fpu_end();
         }
 
         bytes -= count * 32;
@@ -934,12 +946,14 @@ extern void gf256_add2_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT
     while (bytes >= 16)
     {
         // z[i] = z[i] xor x[i] xor y[i]
+	kernel_fpu_begin();
         _mm_storeu_si128(z16,
             _mm_xor_si128(
                 _mm_loadu_si128(z16),
                 _mm_xor_si128(
                     _mm_loadu_si128(x16),
                     _mm_loadu_si128(y16))));
+	kernel_fpu_end();
 
         bytes -= 16, ++x16, ++y16, ++z16;
     }
@@ -1058,10 +1072,12 @@ extern void gf256_addset_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRI
         const unsigned count = bytes / 32;
         for (i = 0; i < count; ++i)
         {
+            kernel_fpu_begin();
             _mm256_storeu_si256(z32 + i,
                 _mm256_xor_si256(
                     _mm256_loadu_si256(x32 + i),
                     _mm256_loadu_si256(y32 + i)));
+	    kernel_fpu_end();
         }
 
         bytes -= count * 32;
@@ -1075,6 +1091,7 @@ extern void gf256_addset_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRI
         // Handle multiples of 64 bytes
         while (bytes >= 64)
         {
+	    kernel_fpu_begin();
             GF256_M128 x0 = _mm_loadu_si128(x16);
             GF256_M128 x1 = _mm_loadu_si128(x16 + 1);
             GF256_M128 x2 = _mm_loadu_si128(x16 + 2);
@@ -1089,6 +1106,7 @@ extern void gf256_addset_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRI
             _mm_storeu_si128(z16 + 2, _mm_xor_si128(x2, y2));
             _mm_storeu_si128(z16 + 3, _mm_xor_si128(x3, y3));
 
+	    kernel_fpu_end();
             bytes -= 64, x16 += 4, y16 += 4, z16 += 4;
         }
     }
@@ -1097,11 +1115,13 @@ extern void gf256_addset_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRI
     while (bytes >= 16)
     {
         // z[i] = x[i] xor y[i]
+	kernel_fpu_begin();
         _mm_storeu_si128(z16,
             _mm_xor_si128(
                 _mm_loadu_si128(x16),
                 _mm_loadu_si128(y16)));
 
+	kernel_fpu_end();
         bytes -= 16, ++x16, ++y16, ++z16;
     }
 #endif // GF256_TARGET_MOBILE
@@ -1206,6 +1226,7 @@ extern void gf256_mul_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT 
         // Handle multiples of 32 bytes
         do
         {
+	    kernel_fpu_begin();
             // See above comments for details
             GF256_M256 x0 = _mm256_loadu_si256(x32);
             GF256_M256 l0 = _mm256_and_si256(x0, clr_mask);
@@ -1215,6 +1236,7 @@ extern void gf256_mul_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT 
             h0 = _mm256_shuffle_epi8(table_hi_y, h0);
             _mm256_storeu_si256(z32, _mm256_xor_si256(l0, h0));
 
+	    kernel_fpu_end();
             bytes -= 32, ++x32, ++z32;
         } while (bytes >= 32);
 
@@ -1234,6 +1256,7 @@ extern void gf256_mul_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT 
         // Handle multiples of 16 bytes
         do
         {
+	    kernel_fpu_begin();
             // See above comments for details
             GF256_M128 x0 = _mm_loadu_si128(x16);
             GF256_M128 l0 = _mm_and_si128(x0, clr_mask);
@@ -1244,6 +1267,7 @@ extern void gf256_mul_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT 
             h0 = _mm_shuffle_epi8(table_hi_y, h0);
             _mm_storeu_si128(z16, _mm_xor_si128(l0, h0));
 
+	    kernel_fpu_end();
             bytes -= 16, ++x16, ++z16;
         } while (bytes >= 16);
     }
@@ -1360,6 +1384,7 @@ extern void gf256_muladd_mem(void * GF256_RESTRICT vz, uint8_t y,
 	unsigned i;
         for (i = 0; i < count; ++i)
         {
+	    kernel_fpu_begin();
             // See above comments for details
             GF256_M256 x0 = _mm256_loadu_si256(x32 + i * 2);
             GF256_M256 l0 = _mm256_and_si256(x0, clr_mask);
@@ -1381,6 +1406,7 @@ extern void gf256_muladd_mem(void * GF256_RESTRICT vz, uint8_t y,
             h1 = _mm256_shuffle_epi8(table_hi_y, h1);
             p1 = _mm256_xor_si256(l1, h1);
             _mm256_storeu_si256(z32 + i * 2 + 1, _mm256_xor_si256(p1, z1));
+	    kernel_fpu_end();
         }
         bytes -= count * 64;
         z32 += count * 2;
@@ -1388,6 +1414,7 @@ extern void gf256_muladd_mem(void * GF256_RESTRICT vz, uint8_t y,
 
         if (bytes >= 32)
         {
+	    kernel_fpu_begin();
             GF256_M256 x0 = _mm256_loadu_si256(x32);
             GF256_M256 l0 = _mm256_and_si256(x0, clr_mask);
 	    GF256_M256 h0, p0, z0;
@@ -1399,6 +1426,7 @@ extern void gf256_muladd_mem(void * GF256_RESTRICT vz, uint8_t y,
             z0 = _mm256_loadu_si256(z32);
             _mm256_storeu_si256(z32, _mm256_xor_si256(p0, z0));
 
+	    kernel_fpu_end();
             bytes -= 32;
             z32++;
             x32++;
@@ -1420,6 +1448,7 @@ extern void gf256_muladd_mem(void * GF256_RESTRICT vz, uint8_t y,
         // This unroll seems to provide about 7% speed boost when AVX2 is disabled
         while (bytes >= 32)
         {
+	    kernel_fpu_begin();
 
             GF256_M128 x1 = _mm_loadu_si128(x16 + 1);
             GF256_M128 l1 = _mm_and_si128(x1, clr_mask);
@@ -1446,6 +1475,7 @@ extern void gf256_muladd_mem(void * GF256_RESTRICT vz, uint8_t y,
             p0 = _mm_xor_si128(l0, h0);
             _mm_storeu_si128(z16, _mm_xor_si128(p0, z0));
 
+	    kernel_fpu_end();
             x16 += 2, z16 += 2;
         }
 
@@ -1453,6 +1483,7 @@ extern void gf256_muladd_mem(void * GF256_RESTRICT vz, uint8_t y,
         while (bytes >= 16)
         {
             // See above comments for details
+	    kernel_fpu_begin();
             GF256_M128 x0 = _mm_loadu_si128(x16);
             GF256_M128 l0 = _mm_and_si128(x0, clr_mask);
 	    GF256_M128 h0, p0, z0;
@@ -1463,7 +1494,7 @@ extern void gf256_muladd_mem(void * GF256_RESTRICT vz, uint8_t y,
             p0 = _mm_xor_si128(l0, h0);
             z0 = _mm_loadu_si128(z16);
             _mm_storeu_si128(z16, _mm_xor_si128(p0, z0));
-
+            kernel_fpu_end();
             bytes -= 16, ++x16, ++z16;
         }
     }
@@ -1542,10 +1573,12 @@ extern void gf256_memswap(void * GF256_RESTRICT vx, void * GF256_RESTRICT vy, in
     // Handle blocks of 16 bytes
     while (bytes >= 16)
     {
+	kernel_fpu_begin();
         GF256_M128 x0 = _mm_loadu_si128(x16);
         GF256_M128 y0 = _mm_loadu_si128(y16);
         _mm_storeu_si128(x16, y0);
         _mm_storeu_si128(y16, x0);
+	kernel_fpu_end();
 
         bytes -= 16, ++x16, ++y16;
     }
