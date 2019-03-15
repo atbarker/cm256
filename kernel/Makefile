@@ -1,9 +1,16 @@
-CFLAGS="-mssse3"
+PWD := $(shell pwd)
 
-All:
-	gcc -g -mssse3 -O0 -c gf256.c
-	gcc -g -O0 -c cm256.c
-	gcc -g -O0 -c main.c
-	gcc -g -O0 -o main main.o cm256.o gf256.o
+ccflags-y += -I$(src)/include/
+
+RStest-objs := main.o cm256.o gf256.o
+obj-m += RStest.o
+
+all:
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
+
+test:
+	sudo insmod RStest.ko
+	sudo rmmod RStest.ko
+
 clean:
-	rm *.o main
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean

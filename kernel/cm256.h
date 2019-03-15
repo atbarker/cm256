@@ -31,15 +31,11 @@
 
 #include "gf256.h"
 
-#include <assert.h>
 
 // Library version
 #define CM256_VERSION 2
 
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /*
  * Verify binary compatibility with the API on startup.
@@ -84,12 +80,12 @@ typedef struct cm256_block_t {
 // Compute the value to put in the Index member of cm256_block
 static inline unsigned char cm256_get_recovery_block_index(cm256_encoder_params params, int recoveryBlockIndex)
 {
-    assert(recoveryBlockIndex >= 0 && recoveryBlockIndex < params.RecoveryCount);
+    //assert(recoveryBlockIndex >= 0 && recoveryBlockIndex < params.RecoveryCount);
     return (unsigned char)(params.OriginalCount + recoveryBlockIndex);
 }
 static inline unsigned char cm256_get_original_block_index(cm256_encoder_params params, int originalBlockIndex)
 {
-    assert(originalBlockIndex >= 0 && originalBlockIndex < params.OriginalCount);
+    //assert(originalBlockIndex >= 0 && originalBlockIndex < params.OriginalCount);
     return (unsigned char)(originalBlockIndex);
 }
 

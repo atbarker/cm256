@@ -44,8 +44,9 @@
     used sparingly.
 */
 
-#include <stdint.h> // uint32_t etc
-#include <string.h>
+#include <linux/string.h>
+#include <linux/types.h>
+#include <asm/fpu/api.h>
 
 /// Library header version
 #define GF256_VERSION 2
@@ -67,8 +68,13 @@
 
 #if !defined(GF256_TARGET_MOBILE)
     // Note: MSVC currently only supports SSSE3 but not AVX2
-    #include <tmmintrin.h> // SSSE3: _mm_shuffle_epi8
-    #include <emmintrin.h> // SSE2
+    #pragma GCC push_options
+    #define _MM_MALLOC_H_INCLUDED
+    #include <x86intrin.h>
+    #undef _MM_MALLOC_H_INCLUDED
+    #pragma GCC pop_options
+    //#include <tmmintrin.h> // SSSE3: _mm_shuffle_epi8
+    //#include <emmintrin.h> // SSE2
 #endif // GF256_TARGET_MOBILE
 
 #if defined(HAVE_ARM_NEON_H)
@@ -117,9 +123,6 @@
     #define GF256_ALIGNED __attribute__((aligned(GF256_ALIGN_BYTES)))
 #endif // _MSC_VER
 
-#ifdef __cplusplus
-extern "C" {
-#endif // __cplusplus
 
 
 //------------------------------------------------------------------------------
@@ -275,8 +278,5 @@ static GF256_FORCE_INLINE void gf256_div_mem(void * GF256_RESTRICT vz,
 extern void gf256_memswap(void * GF256_RESTRICT vx, void * GF256_RESTRICT vy, int bytes);
 
 
-#ifdef __cplusplus
-}
-#endif // __cplusplus
 
 #endif // CAT_GF256_H
