@@ -64,13 +64,12 @@ void hexDump (char *desc, void *addr, uint32_t len) {
 int ExampleFileUsage()
 {   
     clock_t start, end;
-    printf("Initialize\n");
     if (cm256_init())
     {
         printf("Initialization messed up\n");
         return 1;
     }
-    printf("initialized\n");
+    printf("Initialized\n");
 
     cm256_encoder_params params;
 
@@ -144,9 +143,6 @@ int ExampleFileUsage()
     end = clock();
     total_time = ((double) (end - start))/ CLOCKS_PER_SEC;
     printf("Time to run decode %f\n", total_time);
-
-
-    printf("seems to have run\nmm");
 
     // blocks[0].Index will now be 0.
     //hexDump("regenerated", blocks[0].Block, 4096);
