@@ -1,14 +1,69 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <syscall.h>
+#include <time.h>
 #include "cm256.h"
 
 #define BLOCK_BYTES 4096
-#define ORIGINAL_COUNT 2
-#define RECOVERY_COUNT 2
+#define ORIGINAL_COUNT 4
+#define RECOVERY_COUNT 4
+
+void hexDump (char *desc, void *addr, uint32_t len) {
+    int i;
+    uint8_t buff[17];
+    uint8_t *pc = (uint8_t*)addr;
+
+    // Output description if given.
+    if (desc != NULL)
+        printf ("%s:\n", desc);
+
+    if (len == 0) {
+        printf("  ZERO LENGTH\n");
+        return;
+    }
+    if (len < 0) {
+        printf("  NEGATIVE LENGTH: %i\n",len);
+        return;
+    }
+
+    // Process every byte in the data.
+    for (i = 0; i < len; i++) {
+        // Multiple of 16 means new line (with line offset).
+
+        if ((i % 16) == 0) {
+            // Just don't print ASCII for the zeroth line.
+            if (i != 0)
+                printf ("  %s\n", buff);
+
+            // Output the offset.
+            printf ("  %04x ", i);
+        }
+
+        // Now the hex code for the specific character.
+        printf (" %02x", pc[i]);
+
+        // And store a printable ASCII character for later.
+        if ((pc[i] < 0x20) || (pc[i] > 0x7e))
+            buff[i % 16] = '.';
+        else
+            buff[i % 16] = pc[i];
+        buff[(i % 16) + 1] = '\0';
+    }
+
+    // Pad out last line if not exactly 16 characters.
+    while ((i % 16) != 0) {
+        printf ("   ");
+        i++;
+    }
+
+    // And print the final ASCII bit.
+    printf ("  %s\n", buff);
+}
 
 int ExampleFileUsage()
-{
+{   
+    clock_t start, end;
     printf("Initialize\n");
     if (cm256_init())
     {
@@ -33,7 +88,10 @@ int ExampleFileUsage()
 
     // Allocate and fill the original file data
     uint8_t* originalFileData = malloc(OriginalFileBytes);
-    memset(originalFileData, 1, OriginalFileBytes);
+
+    //Doing it this way as some Linux versions don't support a normal get_random
+    syscall(SYS_getrandom, originalFileData, OriginalFileBytes, 0);
+    //hexDump("data", originalFileData, OriginalFileBytes);
 
     // Pointers to data
     cm256_block blocks[256];
@@ -48,11 +106,16 @@ int ExampleFileUsage()
     uint8_t* recoveryBlocks = malloc(params.RecoveryCount * params.BlockBytes);
 
     // Generate recovery data
+    start = clock();
     if (cm256_encode(params, blocks, recoveryBlocks))
     {
         return 1;
     }
-    printf("encoded\n");
+    end = clock();
+    double total_time = ((double) (end - start))/ CLOCKS_PER_SEC;
+    printf("Time to run encode %f\n", total_time);
+
+    //hexDump("parity", recoveryBlocks, params.RecoveryCount * params.BlockBytes);
 
     // Initialize the indices
     for (int i = 0; i < params.OriginalCount; ++i)
@@ -65,16 +128,24 @@ int ExampleFileUsage()
     blocks[0].Index = cm256_get_recovery_block_index(params, 0); // First recovery block index
     //// Simulate loss of data, subsituting a recovery block in its place ////
 
+    
+
+    start = clock();
     int ret;
     if (ret = cm256_decode(params, blocks))
     {
 	printf("decode failed %d \n", ret);
         return 1;
     }
+    end = clock();
+    total_time = ((double) (end - start))/ CLOCKS_PER_SEC;
+    printf("Time to run decode %f\n", total_time);
+
 
     printf("seems to have run\nmm");
 
     // blocks[0].Index will now be 0.
+
 
     free(originalFileData);
     free(recoveryBlocks);
