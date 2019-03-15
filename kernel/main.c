@@ -22,7 +22,7 @@ int ExampleFileUsage(void)
     uint8_t* originalFileData; 
     uint8_t* filedatacopy;
     uint8_t* recoveryBlocks;
-    cm256_block blocks[256];
+    cm256_block *blocks = kmalloc(sizeof(cm256_block) * 256, GFP_KERNEL);
     int i, ret;
 
     if (cm256_init())
@@ -100,7 +100,7 @@ int ExampleFileUsage(void)
     kfree(originalFileData);
     kfree(filedatacopy);
     kfree(recoveryBlocks);
-
+    kfree(blocks);
     return 0;
 }
 

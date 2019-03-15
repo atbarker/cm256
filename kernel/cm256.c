@@ -572,7 +572,7 @@ extern int cm256_decode(
     cm256_encoder_params params, // Encoder params
     cm256_block* blocks)         // Array of 'originalCount' blocks as described above
 {
-    CM256Decoder state;
+    CM256Decoder *state = kmalloc(sizeof(CM256Decoder), GFP_KERNEL);
 
     if (params.OriginalCount <= 0 ||
         params.RecoveryCount <= 0 ||
@@ -597,13 +597,13 @@ extern int cm256_decode(
         return 0;
     }
 
-    if (Initialize(&state, params, blocks))
+    if (Initialize(state, params, blocks))
     {
         return -5;
     }
 
     // If nothing is erased,
-    if (state.RecoveryCount <= 0)
+    if (state->RecoveryCount <= 0)
     {
         return 0;
     }
@@ -611,11 +611,11 @@ extern int cm256_decode(
     // If m=1,
     if (params.RecoveryCount == 1)
     {
-        DecodeM1(&state);
+        DecodeM1(state);
         return 0;
     }
 
     // Decode for m>1
-    Decode(&state);
+    Decode(state);
     return 0;
 }
