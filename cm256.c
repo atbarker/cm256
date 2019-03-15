@@ -243,30 +243,26 @@ typedef struct
     uint8_t ErasuresIndices[256];
 
     // Initialize the decoder
-    bool Initialize(cm256_encoder_params params, cm256_block* blocks);
 
     // Decode m=1 case
-    void DecodeM1();
 
     // Decode for m>1 case
-    void Decode();
 
     // Generate the LU decomposition of the matrix
-    void GenerateLDUDecomposition(uint8_t* matrix_L, uint8_t* diag_D, uint8_t* matrix_U);
 }CM256Decoder;
 
-bool CM256Decoder::Initialize(cm256_encoder_params params, cm256_block* blocks)
+bool Initialize(CM256Decoder *decoder, cm256_encoder_params params, cm256_block* blocks)
 {
-    Params = params;
+    decoder->Params = params;
 
     cm256_block* block = blocks;
-    OriginalCount = 0;
-    RecoveryCount = 0;
+    decoder->OriginalCount = 0;
+    decoder->RecoveryCount = 0;
 
     // Initialize erasures to zeros
     for (int ii = 0; ii < params.OriginalCount; ++ii)
     {
-        ErasuresIndices[ii] = 0;
+        decoder->ErasuresIndices[ii] = 0;
     }
 
     // For each input block,
@@ -277,30 +273,30 @@ bool CM256Decoder::Initialize(cm256_encoder_params params, cm256_block* blocks)
         // If it is an original block,
         if (row < params.OriginalCount)
         {
-            Original[OriginalCount++] = block;
+            decoder->Original[decoder->OriginalCount++] = block;
 
-            if (ErasuresIndices[row] != 0)
+            if (decoder->ErasuresIndices[row] != 0)
             {
                 // Error out if two row indices repeat
                 return false;
             }
 
-            ErasuresIndices[row] = 1;
+            decoder->ErasuresIndices[row] = 1;
         }
         else
         {
-            Recovery[RecoveryCount++] = block;
+            decoder->Recovery[decoder->RecoveryCount++] = block;
         }
     }
 
     // Identify erasures
     for (int ii = 0, indexCount = 0; ii < 256; ++ii)
     {
-        if (!ErasuresIndices[ii])
+        if (!decoder->ErasuresIndices[ii])
         {
-            ErasuresIndices[indexCount] = (uint8_t)( ii );
+            decoder->ErasuresIndices[indexCount] = (uint8_t)( ii );
 
-            if (++indexCount >= RecoveryCount)
+            if (++indexCount >= decoder->RecoveryCount)
             {
                 break;
             }
@@ -310,16 +306,16 @@ bool CM256Decoder::Initialize(cm256_encoder_params params, cm256_block* blocks)
     return true;
 }
 
-void CM256Decoder::DecodeM1()
+void DecodeM1(CM256Decoder *decoder)
 {
     // XOR all other blocks into the recovery block
-    uint8_t* outBlock = (uint8_t*)(Recovery[0]->Block);
-    const uint8_t* inBlock = nullptr;
+    uint8_t* outBlock = (uint8_t*)(decoder->Recovery[0]->Block);
+    const uint8_t* inBlock = NULL;
 
     // For each block,
-    for (int ii = 0; ii < OriginalCount; ++ii)
+    for (int ii = 0; ii < decoder->OriginalCount; ++ii)
     {
-        const uint8_t* inBlock2 = (const uint8_t*)(Original[ii]->Block);
+        const uint8_t* inBlock2 = (const uint8_t*)(decoder->Original[ii]->Block);
 
         if (!inBlock)
         {
@@ -328,23 +324,23 @@ void CM256Decoder::DecodeM1()
         else
         {
             // outBlock ^= inBlock ^ inBlock2
-            gf256_add2_mem(outBlock, inBlock, inBlock2, Params.BlockBytes);
-            inBlock = nullptr;
+            gf256_add2_mem(outBlock, inBlock, inBlock2, decoder->Params.BlockBytes);
+            inBlock = NULL;
         }
     }
 
     // Complete XORs
     if (inBlock)
     {
-        gf256_add_mem(outBlock, inBlock, Params.BlockBytes);
+        gf256_add_mem(outBlock, inBlock, decoder->Params.BlockBytes);
     }
 
     // Recover the index it corresponds to
-    Recovery[0]->Index = ErasuresIndices[0];
+    decoder->Recovery[0]->Index = decoder->ErasuresIndices[0];
 }
 
 // Generate the LU decomposition of the matrix
-void CM256Decoder::GenerateLDUDecomposition(uint8_t* matrix_L, uint8_t* diag_D, uint8_t* matrix_U)
+void GenerateLDUDecomposition(CM256Decoder *decoder, uint8_t* matrix_L, uint8_t* diag_D, uint8_t* matrix_U)
 {
     // Schur-type-direct-Cauchy algorithm 2.5 from
     // "Pivoting and Backward Stability of Fast Algorithms for Solving Cauchy Linear Equations"
@@ -354,7 +350,7 @@ void CM256Decoder::GenerateLDUDecomposition(uint8_t* matrix_L, uint8_t* diag_D, 
     // and organized the triangle matrices in memory to allow for faster SSE3 GF multiplications.
 
     // Matrix size NxN
-    const int N = RecoveryCount;
+    const int N = decoder->RecoveryCount;
 
     // Generators
     uint8_t g[256], b[256];
@@ -371,13 +367,13 @@ void CM256Decoder::GenerateLDUDecomposition(uint8_t* matrix_L, uint8_t* diag_D, 
     int firstOffset_U = 0;
 
     // Start the x_0 values arbitrarily from the original count.
-    const uint8_t x_0 = (uint8_t)(Params.OriginalCount);
+    const uint8_t x_0 = (uint8_t)(decoder->Params.OriginalCount);
 
     // Unrolling k = 0 just makes it slower for some reason.
     for (int k = 0; k < N - 1; ++k)
     {
-        const uint8_t x_k = Recovery[k]->Index;
-        const uint8_t y_k = ErasuresIndices[k];
+        const uint8_t x_k = decoder->Recovery[k]->Index;
+        const uint8_t y_k = decoder->ErasuresIndices[k];
 
         // D_kk = (x_k + y_k)
         // L_kk = g[k] / (x_k + y_k)
@@ -394,8 +390,8 @@ void CM256Decoder::GenerateLDUDecomposition(uint8_t* matrix_L, uint8_t* diag_D, 
         uint8_t* row_U = rotated_row_U;
         for (int j = k + 1; j < N; ++j)
         {
-            const uint8_t x_j = Recovery[j]->Index;
-            const uint8_t y_j = ErasuresIndices[j];
+            const uint8_t x_j = decoder->Recovery[j]->Index;
+            const uint8_t y_j = decoder->ErasuresIndices[j];
 
             // L_jk = g[j] / (x_j + y_k)
             // U_kj = b[j] / (x_k + y_j)
@@ -433,15 +429,15 @@ void CM256Decoder::GenerateLDUDecomposition(uint8_t* matrix_L, uint8_t* diag_D, 
     uint8_t* row_U = matrix_U;
     for (int j = N - 1; j > 0; --j)
     {
-        const uint8_t y_j = ErasuresIndices[j];
+        const uint8_t y_j = decoder->ErasuresIndices[j];
         const int count = j;
 
         gf256_mul_mem(row_U, row_U, gf256_add(x_0, y_j), count);
         row_U += count;
     }
 
-    const uint8_t x_n = Recovery[N - 1]->Index;
-    const uint8_t y_n = ErasuresIndices[N - 1];
+    const uint8_t x_n = decoder->Recovery[N - 1]->Index;
+    const uint8_t y_n = decoder->ErasuresIndices[N - 1];
 
     // D_nn = 1 / (x_n + y_n)
     // L_nn = g[N-1]
@@ -453,40 +449,40 @@ void CM256Decoder::GenerateLDUDecomposition(uint8_t* matrix_L, uint8_t* diag_D, 
     diag_D[N - 1] = gf256_div(gf256_mul(L_nn, U_nn), gf256_add(x_n, y_n));
 }
 
-void CM256Decoder::Decode()
+void Decode(CM256Decoder *decoder)
 {
     // Matrix size is NxN, where N is the number of recovery blocks used.
-    const int N = RecoveryCount;
+    const int N = decoder->RecoveryCount;
 
     // Start the x_0 values arbitrarily from the original count.
-    const uint8_t x_0 = (uint8_t)(Params.OriginalCount);
+    const uint8_t x_0 = (uint8_t)(decoder->Params.OriginalCount);
 
     // Eliminate original data from the the recovery rows
-    for (int originalIndex = 0; originalIndex < OriginalCount; ++originalIndex)
+    for (int originalIndex = 0; originalIndex < decoder->OriginalCount; ++originalIndex)
     {
-        const uint8_t* inBlock = (const uint8_t*)(Original[originalIndex]->Block);
-        const uint8_t inRow = Original[originalIndex]->Index;
+        const uint8_t* inBlock = (const uint8_t*)(decoder->Original[originalIndex]->Block);
+        const uint8_t inRow = decoder->Original[originalIndex]->Index;
 
         for (int recoveryIndex = 0; recoveryIndex < N; ++recoveryIndex)
         {
-            uint8_t* outBlock = (uint8_t*)(Recovery[recoveryIndex]->Block);
-            const uint8_t x_i = Recovery[recoveryIndex]->Index;
+            uint8_t* outBlock = (uint8_t*)(decoder->Recovery[recoveryIndex]->Block);
+            const uint8_t x_i = decoder->Recovery[recoveryIndex]->Index;
             const uint8_t y_j = inRow;
             const uint8_t matrixElement = GetMatrixElement(x_i, x_0, y_j);
 
-            gf256_muladd_mem(outBlock, matrixElement, inBlock, Params.BlockBytes);
+            gf256_muladd_mem(outBlock, matrixElement, inBlock, decoder->Params.BlockBytes);
         }
     }
 
     // Allocate matrix
     static const int StackAllocSize = 2048;
     uint8_t stackMatrix[StackAllocSize];
-    uint8_t* dynamicMatrix = nullptr;
+    uint8_t* dynamicMatrix = NULL;
     uint8_t* matrix = stackMatrix;
     const int requiredSpace = N * N;
     if (requiredSpace > StackAllocSize)
     {
-        dynamicMatrix = new uint8_t[requiredSpace];
+        uint8_t *dynamicMatrix = malloc(requiredSpace);
         matrix = dynamicMatrix;
     }
 
@@ -502,7 +498,7 @@ void CM256Decoder::Decode()
     uint8_t* matrix_U = matrix;
     uint8_t* diag_D = matrix_U + (N - 1) * N / 2;
     uint8_t* matrix_L = diag_D + N;
-    GenerateLDUDecomposition(matrix_L, diag_D, matrix_U);
+    GenerateLDUDecomposition(decoder, matrix_L, diag_D, matrix_U);
 
     /*
         Eliminate lower left triangle.
@@ -510,15 +506,15 @@ void CM256Decoder::Decode()
     // For each column,
     for (int j = 0; j < N - 1; ++j)
     {
-        const void* block_j = Recovery[j]->Block;
+        const void* block_j = decoder->Recovery[j]->Block;
 
         // For each row,
         for (int i = j + 1; i < N; ++i)
         {
-            void* block_i = Recovery[i]->Block;
+            void* block_i = decoder->Recovery[i]->Block;
             const uint8_t c_ij = *matrix_L++; // Matrix elements are stored column-first, top-down.
 
-            gf256_muladd_mem(block_i, c_ij, block_j, Params.BlockBytes);
+            gf256_muladd_mem(block_i, c_ij, block_j, decoder->Params.BlockBytes);
         }
     }
 
@@ -527,11 +523,11 @@ void CM256Decoder::Decode()
     */
     for (int i = 0; i < N; ++i)
     {
-        void* block = Recovery[i]->Block;
+        void* block = decoder->Recovery[i]->Block;
 
-        Recovery[i]->Index = ErasuresIndices[i];
+        decoder->Recovery[i]->Index = decoder->ErasuresIndices[i];
 
-        gf256_div_mem(block, block, diag_D[i], Params.BlockBytes);
+        gf256_div_mem(block, block, diag_D[i], decoder->Params.BlockBytes);
     }
 
     /*
@@ -539,18 +535,18 @@ void CM256Decoder::Decode()
     */
     for (int j = N - 1; j >= 1; --j)
     {
-        const void* block_j = Recovery[j]->Block;
+        const void* block_j = decoder->Recovery[j]->Block;
 
         for (int i = j - 1; i >= 0; --i)
         {
-            void* block_i = Recovery[i]->Block;
+            void* block_i = decoder->Recovery[i]->Block;
             const uint8_t c_ij = *matrix_U++; // Matrix elements are stored column-first, bottom-up.
 
-            gf256_muladd_mem(block_i, c_ij, block_j, Params.BlockBytes);
+            gf256_muladd_mem(block_i, c_ij, block_j, decoder->Params.BlockBytes);
         }
     }
 
-    delete[] dynamicMatrix;
+    free(dynamicMatrix);
 }
 
 extern int cm256_decode(
@@ -581,7 +577,7 @@ extern int cm256_decode(
     }
 
     CM256Decoder state;
-    if (!state.Initialize(params, blocks))
+    if (Initialize(&state, params, blocks))
     {
         return -5;
     }
@@ -595,11 +591,11 @@ extern int cm256_decode(
     // If m=1,
     if (params.RecoveryCount == 1)
     {
-        state.DecodeM1();
+        DecodeM1(&state);
         return 0;
     }
 
     // Decode for m>1
-    state.Decode();
+    Decode(&state);
     return 0;
 }
