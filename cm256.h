@@ -68,7 +68,7 @@ typedef struct cm256_encoder_params_t {
 // Descriptor for data block
 typedef struct cm256_block_t {
     // Pointer to data received.
-    void* Block;
+    uint8_t* Block;
 
     // Block index.
     // For original data, it will be in the range

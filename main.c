@@ -88,10 +88,12 @@ int ExampleFileUsage()
 
     // Allocate and fill the original file data
     uint8_t* originalFileData = malloc(OriginalFileBytes);
+    uint8_t* filedatacopy = malloc(OriginalFileBytes);
 
     //Doing it this way as some Linux versions don't support a normal get_random
     syscall(SYS_getrandom, originalFileData, OriginalFileBytes, 0);
-    //hexDump("data", originalFileData, OriginalFileBytes);
+    //hexDump("data", originalFileData, 4096);
+    memcpy(filedatacopy, originalFileData, OriginalFileBytes);
 
     // Pointers to data
     cm256_block blocks[256];
@@ -115,7 +117,7 @@ int ExampleFileUsage()
     double total_time = ((double) (end - start))/ CLOCKS_PER_SEC;
     printf("Time to run encode %f\n", total_time);
 
-    //hexDump("parity", recoveryBlocks, params.RecoveryCount * params.BlockBytes);
+    //hexDump("parity", recoveryBlocks, 4096);
 
     // Initialize the indices
     for (int i = 0; i < params.OriginalCount; ++i)
@@ -124,10 +126,12 @@ int ExampleFileUsage()
     }
 
     //// Simulate loss of data, subsituting a recovery block in its place ////
-    blocks[0].Block = recoveryBlocks; // First recovery block
+    blocks[0].Block = &recoveryBlocks[0]; // First recovery block
     blocks[0].Index = cm256_get_recovery_block_index(params, 0); // First recovery block index
     //// Simulate loss of data, subsituting a recovery block in its place ////
-
+    
+    blocks[1].Block = &recoveryBlocks[4096];
+    blocks[1].Index = cm256_get_recovery_block_index(params, 1);
     
 
     start = clock();
@@ -145,6 +149,14 @@ int ExampleFileUsage()
     printf("seems to have run\nmm");
 
     // blocks[0].Index will now be 0.
+    //hexDump("regenerated", blocks[0].Block, 4096);
+    
+    for(int i = 0; i < 2 * 4096; i++){
+        if(blocks[i/4096].Block[i%4096] != filedatacopy[i]){
+            printf("Decode errors on byte %d\n", i);
+	    return -1;
+	}
+    }
 
 
     free(originalFileData);
