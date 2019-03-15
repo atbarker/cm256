@@ -8,7 +8,7 @@
 #include <linux/types.h>
 #include "cm256.h"
 
-MODULE_LICENSE("MIT");
+MODULE_LICENSE("GPL");
 MODULE_AUTHOR("AUSTEN BARKER");
 
 #define BLOCK_BYTES 4096

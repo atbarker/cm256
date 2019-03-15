@@ -1,6 +1,6 @@
 PWD := $(shell pwd)
 
-ccflags-y += -I$(src)/include/
+ccflags-y += -I$(src)/include/ -msse3 -msse4.1
 
 RStest-objs := main.o cm256.o gf256.o
 obj-m += RStest.o
