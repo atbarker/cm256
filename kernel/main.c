@@ -24,6 +24,7 @@ int ExampleFileUsage(void)
     uint8_t* recoveryBlocks;
     cm256_block *blocks = kmalloc(sizeof(cm256_block) * 256, GFP_KERNEL);
     int i, ret;
+    struct timespec timespec1, timespec2;
 
     if (cm256_init())
     {
@@ -61,11 +62,14 @@ int ExampleFileUsage(void)
     recoveryBlocks = kmalloc(params.RecoveryCount * params.BlockBytes, GFP_KERNEL);
 
     // Generate recovery data
+    getnstimeofday(&timespec1);
     if (cm256_encode(params, blocks, recoveryBlocks))
     {
         return 1;
     }
-
+    getnstimeofday(&timespec2);
+    printk(KERN_INFO "Encode took: %ld nanoseconds",
+(timespec2.tv_sec - timespec1.tv_sec) * 1000000000 + (timespec2.tv_nsec - timespec1.tv_nsec));
 
     // Initialize the indices
     for (i = 0; i < params.OriginalCount; ++i)
@@ -80,8 +84,13 @@ int ExampleFileUsage(void)
     
     blocks[1].Block = &recoveryBlocks[4096];
     blocks[1].Index = cm256_get_recovery_block_index(params, 1);
-    
+
+    getnstimeofday(&timespec1);    
     ret = cm256_decode(params, blocks);
+    getnstimeofday(&timespec2);
+    printk(KERN_INFO "Decode took: %ld nanoseconds",
+(timespec2.tv_sec - timespec1.tv_sec) * 1000000000 + (timespec2.tv_nsec - timespec1.tv_nsec));\
+
     if (ret)
     {
 	printk(KERN_INFO "decode failed %d \n", ret);
