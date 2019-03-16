@@ -49,8 +49,7 @@
 //
 #ifdef GF256_TRY_NEON
 #if __ARM_ARCH <= 7 && !defined(__aarch64__)
-static GF256_FORCE_INLINE uint8x16_t vqtbl1q_u8(uint8x16_t a, uint8x16_t b)
-{
+static GF256_FORCE_INLINE uint8x16_t vqtbl1q_u8(uint8x16_t a, uint8x16_t b) {
     union {
         uint8x16_t    val;
         uint8x8x2_t    pair;
@@ -75,48 +74,47 @@ typedef struct {
 
 static GF256_ALIGNED SelfTestBuffersT m_SelfTestBuffers;
 
-static int gf256_self_test(void)
-{
+static int gf256_self_test(void) {
     unsigned i, j;
     uint8_t expectedMul, expectedMulAdd;
-    if ((uintptr_t)m_SelfTestBuffers.A % GF256_ALIGN_BYTES != 0)
+    if ((uintptr_t)m_SelfTestBuffers.A % GF256_ALIGN_BYTES != 0) {
         return -1;
-    if ((uintptr_t)m_SelfTestBuffers.A % GF256_ALIGN_BYTES != 0)
+    }
+    if ((uintptr_t)m_SelfTestBuffers.A % GF256_ALIGN_BYTES != 0) {
         return -1;
-    if ((uintptr_t)m_SelfTestBuffers.B % GF256_ALIGN_BYTES != 0)
+    }
+    if ((uintptr_t)m_SelfTestBuffers.B % GF256_ALIGN_BYTES != 0) {
         return -1;
-    if ((uintptr_t)m_SelfTestBuffers.C % GF256_ALIGN_BYTES != 0)
+    }
+    if ((uintptr_t)m_SelfTestBuffers.C % GF256_ALIGN_BYTES != 0) {
         return -1;
+    }
 
     // Check multiplication/division
-    for (i = 0; i < 256; ++i)
-    {
-        for (j = 0; j < 256; ++j)
-        {
+    for (i = 0; i < 256; ++i) {
+        for (j = 0; j < 256; ++j) {
             uint8_t prod = gf256_mul((uint8_t)i, (uint8_t)j);
-            if (i != 0 && j != 0)
-            {
+            if (i != 0 && j != 0) {
                 uint8_t div1 = gf256_div(prod, (uint8_t)i);
-		uint8_t div2;
-
+                uint8_t div2;
                 if (div1 != j){
-//		    printf("first division failed\n");
+                    //printf("first division failed\n");
                     return -1;
-		}
+                }
                 div2 = gf256_div(prod, (uint8_t)j);
                 if (div2 != i){
-//		    printf("second division failed\n");
+                    //printk(KERN_INFO "second division failed\n");
                     return -1;
-		}
+                }
             }
             else if (prod != 0){
-		//printf("Product is not zero\n");
+                //printk(KERN_INFO "Product is not zero\n");
                 return -1;
-	    }
+            }
             if (j == 1 && prod != i){
-		//printf("Multiplication error\n");
+                //printf("Multiplication error\n");
                 return -1;
-	    }
+            }
         }
     }
 
@@ -126,72 +124,78 @@ static int gf256_self_test(void)
     m_SelfTestBuffers.C[kTestBufferBytes] = 0x5a;
 
     // Test gf256_add_mem()
-    for (i = 0; i < kTestBufferBytes; ++i)
-    {
+    for (i = 0; i < kTestBufferBytes; ++i) {
         m_SelfTestBuffers.A[i] = 0x1f;
         m_SelfTestBuffers.B[i] = 0xf7;
     }
     gf256_add_mem(m_SelfTestBuffers.A, m_SelfTestBuffers.B, kTestBufferBytes);
-    for (i = 0; i < kTestBufferBytes; ++i)
+    for (i = 0; i < kTestBufferBytes; ++i) {
         if (m_SelfTestBuffers.A[i] != (0x1f ^ 0xf7)){
-	    //printf("addition failure\n");
+	        //printf("addition failure\n");
             return -1;
+        }
 	}
 
     // Test gf256_add2_mem()
-    for (i = 0; i < kTestBufferBytes; ++i)
-    {
+    for (i = 0; i < kTestBufferBytes; ++i) {
         m_SelfTestBuffers.A[i] = 0x1f;
         m_SelfTestBuffers.B[i] = 0xf7;
         m_SelfTestBuffers.C[i] = 0x71;
     }
     gf256_add2_mem(m_SelfTestBuffers.A, m_SelfTestBuffers.B, m_SelfTestBuffers.C, kTestBufferBytes);
-    for (i = 0; i < kTestBufferBytes; ++i)
-        if (m_SelfTestBuffers.A[i] != (0x1f ^ 0xf7 ^ 0x71))
+    for (i = 0; i < kTestBufferBytes; ++i) {
+        if (m_SelfTestBuffers.A[i] != (0x1f ^ 0xf7 ^ 0x71)) {
             return -1;
+        }
+    }
 
     // Test gf256_addset_mem()
-    for (i = 0; i < kTestBufferBytes; ++i)
-    {
+    for (i = 0; i < kTestBufferBytes; ++i) {
         m_SelfTestBuffers.A[i] = 0x55;
         m_SelfTestBuffers.B[i] = 0xaa;
         m_SelfTestBuffers.C[i] = 0x6c;
     }
     gf256_addset_mem(m_SelfTestBuffers.A, m_SelfTestBuffers.B, m_SelfTestBuffers.C, kTestBufferBytes);
-    for (i = 0; i < kTestBufferBytes; ++i)
-        if (m_SelfTestBuffers.A[i] != (0xaa ^ 0x6c))
+    for (i = 0; i < kTestBufferBytes; ++i) {
+        if (m_SelfTestBuffers.A[i] != (0xaa ^ 0x6c)) {
             return -1;
-
+        }
+    }
     // Test gf256_muladd_mem()
-    for (i = 0; i < kTestBufferBytes; ++i)
-    {
+    for (i = 0; i < kTestBufferBytes; ++i) {
         m_SelfTestBuffers.A[i] = 0xff;
         m_SelfTestBuffers.B[i] = 0xaa;
     }
     expectedMulAdd = gf256_mul(0xaa, 0x6c);
     gf256_muladd_mem(m_SelfTestBuffers.A, 0x6c, m_SelfTestBuffers.B, kTestBufferBytes);
-    for (i = 0; i < kTestBufferBytes; ++i)
-        if (m_SelfTestBuffers.A[i] != (expectedMulAdd ^ 0xff))
+    for (i = 0; i < kTestBufferBytes; ++i) {
+        if (m_SelfTestBuffers.A[i] != (expectedMulAdd ^ 0xff)) {
             return -1;
+        }
+    }
 
     // Test gf256_mul_mem()
-    for (i = 0; i < kTestBufferBytes; ++i)
-    {
+    for (i = 0; i < kTestBufferBytes; ++i) {
         m_SelfTestBuffers.A[i] = 0xff;
         m_SelfTestBuffers.B[i] = 0x55;
     }
     expectedMul = gf256_mul(0xa2, 0x55);
     gf256_mul_mem(m_SelfTestBuffers.A, m_SelfTestBuffers.B, 0xa2, kTestBufferBytes);
-    for (i = 0; i < kTestBufferBytes; ++i)
-        if (m_SelfTestBuffers.A[i] != expectedMul)
+    for (i = 0; i < kTestBufferBytes; ++i) {
+        if (m_SelfTestBuffers.A[i] != expectedMul) {
             return -1;
+        }
+    }
 
-    if (m_SelfTestBuffers.A[kTestBufferBytes] != 0x5a)
+    if (m_SelfTestBuffers.A[kTestBufferBytes] != 0x5a) {
         return -1;
-    if (m_SelfTestBuffers.B[kTestBufferBytes] != 0x5a)
+    }
+    if (m_SelfTestBuffers.B[kTestBufferBytes] != 0x5a) {
         return -1;
-    if (m_SelfTestBuffers.C[kTestBufferBytes] != 0x5a)
+    }
+    if (m_SelfTestBuffers.C[kTestBufferBytes] != 0x5a) {
         return -1;
+    }
 
     printk(KERN_INFO "Self test passed\n");
     return 0;
@@ -278,49 +282,42 @@ static void _cpuid(unsigned int cpu_info[4U], const unsigned int cpu_info_type)
 
 #else
 #if defined(LINUX_ARM)
-static void checkLinuxARMNeonCapabilities( bool& cpuHasNeon )
-{
+static void checkLinuxARMNeonCapabilities( bool& cpuHasNeon ) {
     auto cpufile = open("/proc/self/auxv", O_RDONLY);
     Elf32_auxv_t auxv;
-    if (cpufile >= 0)
-    {
+    if (cpufile >= 0) {
         const auto size_auxv_t = sizeof(Elf32_auxv_t);
-        while (read(cpufile, &auxv, size_auxv_t) == size_auxv_t)
-        {
-            if (auxv.a_type == AT_HWCAP)
-            {
+        while (read(cpufile, &auxv, size_auxv_t) == size_auxv_t) {
+            if (auxv.a_type == AT_HWCAP) {
                 cpuHasNeon = (auxv.a_un.a_val & 4096) != 0;
                 break;
             }
         }
         close(cpufile);
-    }
-    else
-    {
+    }else {
         cpuHasNeon = false;
     }
 }
 #endif
 #endif // defined(GF256_TARGET_MOBILE)
 
-static void gf256_architecture_init(void)
-{
+static void gf256_architecture_init(void) {
     unsigned int cpu_info[4];
 #if defined(GF256_TRY_NEON)
 
     // Check for NEON support on Android platform
 #if defined(HAVE_ANDROID_GETCPUFEATURES)
     AndroidCpuFamily family = android_getCpuFamily();
-    if (family == ANDROID_CPU_FAMILY_ARM)
-    {
-        if (android_getCpuFeatures() & ANDROID_CPU_ARM_FEATURE_NEON)
+    if (family == ANDROID_CPU_FAMILY_ARM) {
+        if (android_getCpuFeatures() & ANDROID_CPU_ARM_FEATURE_NEON){
             CpuHasNeon = true;
+        }
     }
-    else if (family == ANDROID_CPU_FAMILY_ARM64)
-    {
+    else if (family == ANDROID_CPU_FAMILY_ARM64) {
         CpuHasNeon = true;
-        if (android_getCpuFeatures() & ANDROID_CPU_ARM64_FEATURE_ASIMD)
+        if (android_getCpuFeatures() & ANDROID_CPU_ARM64_FEATURE_ASIMD) {
             CpuHasNeon64 = true;
+        }
     }
 #endif
 
@@ -371,10 +368,10 @@ static const uint8_t GF256_GEN_POLY[GF256_GEN_POLY_COUNT] = {
 static const int kDefaultPolynomialIndex = 3;
 
 // Select which polynomial to use
-static void gf256_poly_init(int polynomialIndex)
-{
-    if (polynomialIndex < 0 || polynomialIndex >= GF256_GEN_POLY_COUNT)
+static void gf256_poly_init(int polynomialIndex) {
+    if (polynomialIndex < 0 || polynomialIndex >= GF256_GEN_POLY_COUNT) {
         polynomialIndex = kDefaultPolynomialIndex;
+    }
 
     GF256Ctx.Polynomial = (GF256_GEN_POLY[polynomialIndex] << 1) | 1;
 }
@@ -384,8 +381,7 @@ static void gf256_poly_init(int polynomialIndex)
 // Exponential and Log Tables
 
 // Construct EXP and LOG tables from polynomial
-static void gf256_explog_init(void)
-{
+static void gf256_explog_init(void) {
     unsigned poly = GF256Ctx.Polynomial;
     uint8_t* exptab = GF256Ctx.GF256_EXP_TABLE;
     uint16_t* logtab = GF256Ctx.GF256_LOG_TABLE;
@@ -393,22 +389,24 @@ static void gf256_explog_init(void)
 
     logtab[0] = 512;
     exptab[0] = 1;
-    for (jj = 1; jj < 255; ++jj)
-    {
+    for (jj = 1; jj < 255; ++jj) {
         unsigned next = (unsigned)exptab[jj - 1] * 2;
-        if (next >= 256)
+        if (next >= 256) {
             next ^= poly;
+        }
 
         exptab[jj] = (uint8_t)( next );
         logtab[exptab[jj]] = (uint16_t)( jj );
     }
     exptab[255] = exptab[0];
     logtab[exptab[255]] = 255;
-    for (jj = 256; jj < 2 * 255; ++jj)
+    for (jj = 256; jj < 2 * 255; ++jj) {
         exptab[jj] = exptab[jj % 255];
+    }
     exptab[2 * 255] = 1;
-    for (jj = 2 * 255 + 1; jj < 4 * 255; ++jj)
+    for (jj = 2 * 255 + 1; jj < 4 * 255; ++jj) {
         exptab[jj] = 0;
+    }
 }
 
 
@@ -416,20 +414,19 @@ static void gf256_explog_init(void)
 // Multiply and Divide Tables
 
 // Initialize MUL and DIV tables using LOG and EXP tables
-static void gf256_muldiv_init(void)
-{
+static void gf256_muldiv_init(void) {
     // Allocate table memory 65KB x 2
     uint8_t* m = GF256Ctx.GF256_MUL_TABLE;
     uint8_t* d = GF256Ctx.GF256_DIV_TABLE;
     int x, y;
 
     // Unroll y = 0 subtable
-    for (x = 0; x < 256; ++x)
+    for (x = 0; x < 256; ++x) {
         m[x] = d[x] = 0;
+    }
 
     // For each other y value:
-    for (y = 1; y < 256; ++y)
-    {
+    for (y = 1; y < 256; ++y) {
         // Calculate log(y) for mult and 255 - log(y) for div
         const uint8_t log_y = (uint8_t)(GF256Ctx.GF256_LOG_TABLE[y]);
         const uint8_t log_yn = 255 - log_y;
@@ -441,8 +438,7 @@ static void gf256_muldiv_init(void)
         m[0] = 0, d[0] = 0;
 
         // Calculate x * y, x / y
-        for (x = 1; x < 256; ++x)
-        {
+        for (x = 1; x < 256; ++x) {
             uint16_t log_x = GF256Ctx.GF256_LOG_TABLE[x];
 
             m[x] = GF256Ctx.GF256_EXP_TABLE[log_x + log_y];
@@ -456,11 +452,11 @@ static void gf256_muldiv_init(void)
 // Inverse Table
 
 // Initialize INV table using DIV table
-static void gf256_inv_init(void)
-{
+static void gf256_inv_init(void) {
     int x;
-    for (x = 0; x < 256; ++x)
+    for (x = 0; x < 256; ++x) {
         GF256Ctx.GF256_INV_TABLE[x] = gf256_div(1, (uint8_t)(x));
+    }
 }
 
 
@@ -468,11 +464,11 @@ static void gf256_inv_init(void)
 // Square Table
 
 // Initialize SQR table using MUL table
-static void gf256_sqr_init(void)
-{
+static void gf256_sqr_init(void) {
     int x;
-    for (x = 0; x < 256; ++x)
+    for (x = 0; x < 256; ++x) {
         GF256Ctx.GF256_SQR_TABLE[x] = gf256_mul((uint8_t)(x), (uint8_t)(x));
+    }
 }
 
 
@@ -568,46 +564,41 @@ static void gf256_sqr_init(void)
 */
 
 // Initialize the multiplication tables using gf256_mul()
-static void gf256_mul_mem_init(void)
-{
+static void gf256_mul_mem_init(void) {
     // Reuse aligned self test buffers to load table data
     uint8_t* lo = m_SelfTestBuffers.A;
     uint8_t* hi = m_SelfTestBuffers.B;
     int y;
     unsigned char x;
 
-    for (y = 0; y < 256; ++y)
-    {
-	GF256_M128 table_lo, table_hi;
+    for (y = 0; y < 256; ++y) {
+        GF256_M128 table_lo, table_hi;
         // TABLE_LO_Y maps 0..15 to 8-bit partial product based on y.
-        for (x = 0; x < 16; ++x)
-        {
+        for (x = 0; x < 16; ++x) {
             lo[x] = gf256_mul(x, (uint8_t)( y ));
             hi[x] = gf256_mul(x << 4, (uint8_t)( y ));
         }
 
 #if defined(GF256_TRY_NEON)
-        if (CpuHasNeon)
-        {
+        if (CpuHasNeon) {
             GF256Ctx.MM128.TABLE_LO_Y[y] = vld1q_u8(lo);
             GF256Ctx.MM128.TABLE_HI_Y[y] = vld1q_u8(hi);
         }
 #elif !defined(GF256_TARGET_MOBILE)
-	kernel_fpu_begin();
+        kernel_fpu_begin();
         table_lo = _mm_loadu_si128((GF256_M128*)lo);
         table_hi = _mm_loadu_si128((GF256_M128*)hi);
         _mm_storeu_si128(GF256Ctx.MM128.TABLE_LO_Y + y, table_lo);
         _mm_storeu_si128(GF256Ctx.MM128.TABLE_HI_Y + y, table_hi);
-	kernel_fpu_end();
+        kernel_fpu_end();
 # ifdef GF256_TRY_AVX2
-        if (CpuHasAVX2)
-        {
-	    kernel_fpu_begin();
+        if (CpuHasAVX2) {
+            kernel_fpu_begin();
             const GF256_M256 table_lo2 = _mm256_broadcastsi128_si256(table_lo);
             const GF256_M256 table_hi2 = _mm256_broadcastsi128_si256(table_hi);
             _mm256_storeu_si256(GF256Ctx.MM256.TABLE_LO_Y + y, table_lo2);
             _mm256_storeu_si256(GF256Ctx.MM256.TABLE_HI_Y + y, table_hi2);
-	    kernel_fpu_end();
+            kernel_fpu_end();
         }
 # endif // GF256_TRY_AVX2
 #endif // GF256_TARGET_MOBILE
@@ -620,14 +611,12 @@ static void gf256_mul_mem_init(void)
 
 static unsigned char kLittleEndianTestData[4] = { 4, 3, 2, 1 };
 
-typedef union
-{
+typedef union {
     uint32_t IntValue;
     char CharArray[4];
 }UnionType;
 
-static bool IsLittleEndian(void)
-{
+static bool IsLittleEndian(void) {
     unsigned i;
     UnionType type;
     for (i = 0; i < 4; ++i)
@@ -635,21 +624,20 @@ static bool IsLittleEndian(void)
     return 0x01020304 == type.IntValue;
 }
 
-extern int gf256_init_(int version)
-{
+extern int gf256_init_(int version) {
     if (version != GF256_VERSION){
         printk(KERN_INFO "something wrong\n");
         return -1; // User's header does not match library version.
     }
 
     // Avoid multiple initialization
-    if (Initialized){
+    if (Initialized) {
         printk(KERN_INFO "Already initialized\n");
         return 0;
     }
     Initialized = true;
 
-    if (!IsLittleEndian()){
+    if (!IsLittleEndian()) {
         printk(KERN_INFO "is it big endian?\n");
         return -2; // Architecture is not supported (code won't work without mods).
     }
@@ -662,7 +650,7 @@ extern int gf256_init_(int version)
     gf256_sqr_init();
     gf256_mul_mem_init();
 
-    if (gf256_self_test()){
+    if (gf256_self_test()) {
         printk(KERN_INFO "failed self test\n");
         return -3; // Self-test failed (perhaps untested configuration)
     }
@@ -675,8 +663,7 @@ extern int gf256_init_(int version)
 // Operations
 
 extern void gf256_add_mem(void * GF256_RESTRICT vx,
-                              const void * GF256_RESTRICT vy, int bytes)
-{
+                              const void * GF256_RESTRICT vy, int bytes) {
     GF256_M128 * GF256_RESTRICT x16 = (GF256_M128 *)(vx);
     const GF256_M128 * GF256_RESTRICT y16 = (const GF256_M128 *)(vy);
     
@@ -686,10 +673,8 @@ extern void gf256_add_mem(void * GF256_RESTRICT vx,
 #if defined(GF256_TARGET_MOBILE)
 # if defined(GF256_TRY_NEON)
     // Handle multiples of 64 bytes
-    if (CpuHasNeon)
-    {
-        while (bytes >= 64)
-        {
+    if (CpuHasNeon) {
+        while (bytes >= 64) {
             GF256_M128 x0 = vld1q_u8((uint8_t*) x16);
             GF256_M128 x1 = vld1q_u8((uint8_t*)(x16 + 1) );
             GF256_M128 x2 = vld1q_u8((uint8_t*)(x16 + 2) );
@@ -708,8 +693,7 @@ extern void gf256_add_mem(void * GF256_RESTRICT vx,
         }
 
         // Handle multiples of 16 bytes
-        while (bytes >= 16)
-        {
+        while (bytes >= 16) {
             GF256_M128 x0 = vld1q_u8((uint8_t*)x16);
             GF256_M128 y0 = vld1q_u8((uint8_t*)y16);
 
@@ -721,7 +705,7 @@ extern void gf256_add_mem(void * GF256_RESTRICT vx,
     else
 # endif // GF256_TRY_NEON
     {
-	unsigned ii;
+        unsigned ii;
         uint64_t * GF256_RESTRICT x8 = (uint64_t *)(x16);
         const uint64_t * GF256_RESTRICT y8 = (const uint64_t *)(y16);
 
@@ -736,17 +720,15 @@ extern void gf256_add_mem(void * GF256_RESTRICT vx,
     }
 #else // GF256_TARGET_MOBILE
 # if defined(GF256_TRY_AVX2)
-    if (CpuHasAVX2)
-    {
+    if (CpuHasAVX2) {
         GF256_M256 * GF256_RESTRICT x32 = (GF256_M256 *)(x16);
         const GF256_M256 * GF256_RESTRICT y32 = (const GF256_M256 *)(y16);
 
-        while (bytes >= 128)
-        {
+        while (bytes >= 128) {
+            GF256_M256 x0, x1, x2, x3, y0, y1, y2, y3;
             kernel_fpu_begin();
-            GF256_M256 x0 = _mm256_loadu_si256(x32);
-            GF256_M256 y0 = _mm256_loadu_si256(y32);
-	    GF256_M256 x1, y1, y2, y3, x2, x3;
+            x0 = _mm256_loadu_si256(x32);
+            y0 = _mm256_loadu_si256(y32);
             x0 = _mm256_xor_si256(x0, y0);
             x1 = _mm256_loadu_si256(x32 + 1);
             y1 = _mm256_loadu_si256(y32 + 1);
@@ -763,20 +745,19 @@ extern void gf256_add_mem(void * GF256_RESTRICT vx,
             _mm256_storeu_si256(x32 + 2, x2);
             _mm256_storeu_si256(x32 + 3, x3);
 
-	    kernel_fpu_end();
+            kernel_fpu_end();
             bytes -= 128, x32 += 4, y32 += 4;
         }
 
         // Handle multiples of 32 bytes
-        while (bytes >= 32)
-        {
+        while (bytes >= 32) {
             // x[i] = x[i] xor y[i]
-	    kernel_fpu_begin();
+            kernel_fpu_begin();
             _mm256_storeu_si256(x32,
                 _mm256_xor_si256(
                     _mm256_loadu_si256(x32),
                     _mm256_loadu_si256(y32)));
-	    kernel_fpu_end();
+            kernel_fpu_end();
 
             bytes -= 32, ++x32, ++y32;
         }
@@ -787,10 +768,9 @@ extern void gf256_add_mem(void * GF256_RESTRICT vx,
     else
 # endif // GF256_TRY_AVX2
     {
-        while (bytes >= 64)
-        {
+        while (bytes >= 64) {
             GF256_M128 x0, y0, x1, x2, x3, y1, y2, y3;
-	    kernel_fpu_begin();
+            kernel_fpu_begin();
             x0 = _mm_loadu_si128(x16);
             y0 = _mm_loadu_si128(y16);
             x0 = _mm_xor_si128(x0, y0);
@@ -809,7 +789,7 @@ extern void gf256_add_mem(void * GF256_RESTRICT vx,
             _mm_storeu_si128(x16 + 2, x2);
             _mm_storeu_si128(x16 + 3, x3);
 
-	    kernel_fpu_end();
+            kernel_fpu_end();
             bytes -= 64, x16 += 4, y16 += 4;
         }
     }
@@ -817,16 +797,15 @@ extern void gf256_add_mem(void * GF256_RESTRICT vx,
 
 #if !defined(GF256_TARGET_MOBILE)
     // Handle multiples of 16 bytes
-    while (bytes >= 16)
-    {
+    while (bytes >= 16) {
         // x[i] = x[i] xor y[i]
-	kernel_fpu_begin();
+        kernel_fpu_begin();
         _mm_storeu_si128(x16,
             _mm_xor_si128(
                 _mm_loadu_si128(x16),
                 _mm_loadu_si128(y16)));
 
-	kernel_fpu_end();
+        kernel_fpu_end();
         bytes -= 16, ++x16, ++y16;
     }
 #endif
@@ -836,8 +815,7 @@ extern void gf256_add_mem(void * GF256_RESTRICT vx,
 
     // Handle a block of 8 bytes
     eight = bytes & 8;
-    if (eight)
-    {
+    if (eight) {
         uint64_t * GF256_RESTRICT x8 = (uint64_t *)(x1);
         const uint64_t * GF256_RESTRICT y8 = (const uint64_t *)(y1);
         *x8 ^= *y8;
@@ -845,8 +823,7 @@ extern void gf256_add_mem(void * GF256_RESTRICT vx,
 
     // Handle a block of 4 bytes
     four = bytes & 4;
-    if (four)
-    {
+    if (four) {
         uint32_t * GF256_RESTRICT x4 = (uint32_t *)(x1 + eight);
         const uint32_t * GF256_RESTRICT y4 = (const uint32_t *)(y1 + eight);
         *x4 ^= *y4;
@@ -854,13 +831,12 @@ extern void gf256_add_mem(void * GF256_RESTRICT vx,
 
     // Handle final bytes
     offset = eight + four;
-    switch (bytes & 3)
-    {
-    case 3: x1[offset + 2] ^= y1[offset + 2];
-    case 2: x1[offset + 1] ^= y1[offset + 1];
-    case 1: x1[offset] ^= y1[offset];
-    default:
-        break;
+    switch (bytes & 3) {
+        case 3: x1[offset + 2] ^= y1[offset + 2];
+        case 2: x1[offset + 1] ^= y1[offset + 1];
+        case 1: x1[offset] ^= y1[offset];
+        default:
+            break;
     }
 }
 
@@ -879,11 +855,9 @@ extern void gf256_add2_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT
 #if defined(GF256_TARGET_MOBILE)
 # if defined(GF256_TRY_NEON)
     // Handle multiples of 64 bytes
-    if (CpuHasNeon)
-    {
+    if (CpuHasNeon) {
         // Handle multiples of 16 bytes
-        while (bytes >= 16)
-        {
+        while (bytes >= 16) {
             // z[i] = z[i] xor x[i] xor y[i]
             vst1q_u8((uint8_t*)z16,
                 veorq_u8(
@@ -915,24 +889,22 @@ extern void gf256_add2_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT
     }
 #else // GF256_TARGET_MOBILE
 # if defined(GF256_TRY_AVX2)
-    if (CpuHasAVX2)
-    {
+    if (CpuHasAVX2) {
 	unsigned i;
         GF256_M256 * GF256_RESTRICT z32 = (GF256_M256 *)(z16);
         const GF256_M256 * GF256_RESTRICT x32 = (const GF256_M256 *)(x16);
         const GF256_M256 * GF256_RESTRICT y32 = (const GF256_M256 *)(y16);
 
         const unsigned count = bytes / 32;
-        for (i = 0; i < count; ++i)
-        {
-	    kernel_fpu_begin();
+        for (i = 0; i < count; ++i) {
+            kernel_fpu_begin();
             _mm256_storeu_si256(z32 + i,
                 _mm256_xor_si256(
                     _mm256_loadu_si256(z32 + i),
                     _mm256_xor_si256(
                         _mm256_loadu_si256(x32 + i),
                         _mm256_loadu_si256(y32 + i))));
-	    kernel_fpu_end();
+            kernel_fpu_end();
         }
 
         bytes -= count * 32;
@@ -943,17 +915,16 @@ extern void gf256_add2_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT
 # endif // GF256_TRY_AVX2
 
     // Handle multiples of 16 bytes
-    while (bytes >= 16)
-    {
+    while (bytes >= 16) {
         // z[i] = z[i] xor x[i] xor y[i]
-	kernel_fpu_begin();
+        kernel_fpu_begin();
         _mm_storeu_si128(z16,
             _mm_xor_si128(
                 _mm_loadu_si128(z16),
                 _mm_xor_si128(
                     _mm_loadu_si128(x16),
                     _mm_loadu_si128(y16))));
-	kernel_fpu_end();
+        kernel_fpu_end();
 
         bytes -= 16, ++x16, ++y16, ++z16;
     }
@@ -965,8 +936,7 @@ extern void gf256_add2_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT
 
     // Handle a block of 8 bytes
     eight = bytes & 8;
-    if (eight)
-    {
+    if (eight) {
         uint64_t * GF256_RESTRICT z8 = (uint64_t *)(z1);
         const uint64_t * GF256_RESTRICT x8 = (const uint64_t *)(x1);
         const uint64_t * GF256_RESTRICT y8 = (const uint64_t *)(y1);
@@ -975,8 +945,7 @@ extern void gf256_add2_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT
 
     // Handle a block of 4 bytes
     four = bytes & 4;
-    if (four)
-    {
+    if (four) {
         uint32_t * GF256_RESTRICT z4 = (uint32_t *)(z1 + eight);
         const uint32_t * GF256_RESTRICT x4 = (const uint32_t *)(x1 + eight);
         const uint32_t * GF256_RESTRICT y4 = (const uint32_t *)(y1 + eight);
@@ -985,13 +954,12 @@ extern void gf256_add2_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT
 
     // Handle final bytes
     offset = eight + four;
-    switch (bytes & 3)
-    {
-    case 3: z1[offset + 2] ^= x1[offset + 2] ^ y1[offset + 2];
-    case 2: z1[offset + 1] ^= x1[offset + 1] ^ y1[offset + 1];
-    case 1: z1[offset] ^= x1[offset] ^ y1[offset];
-    default:
-        break;
+    switch (bytes & 3) {
+        case 3: z1[offset + 2] ^= x1[offset + 2] ^ y1[offset + 2];
+        case 2: z1[offset + 1] ^= x1[offset + 1] ^ y1[offset + 1];
+        case 1: z1[offset] ^= x1[offset] ^ y1[offset];
+        default:
+            break;
     }
 }
 
@@ -1010,10 +978,8 @@ extern void gf256_addset_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRI
 #if defined(GF256_TARGET_MOBILE)
 # if defined(GF256_TRY_NEON)
     // Handle multiples of 64 bytes
-    if (CpuHasNeon)
-    {
-        while (bytes >= 64)
-        {
+    if (CpuHasNeon) {
+        while (bytes >= 64) {
             GF256_M128 x0 = vld1q_u8((uint8_t*)x16);
             GF256_M128 x1 = vld1q_u8((uint8_t*)(x16 + 1));
             GF256_M128 x2 = vld1q_u8((uint8_t*)(x16 + 2));
@@ -1032,8 +998,7 @@ extern void gf256_addset_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRI
         }
 
         // Handle multiples of 16 bytes
-        while (bytes >= 16)
-        {
+        while (bytes >= 16) {
             // z[i] = x[i] xor y[i]
             vst1q_u8((uint8_t*)z16,
                      veorq_u8(
@@ -1046,14 +1011,15 @@ extern void gf256_addset_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRI
     else
 # endif // GF256_TRY_NEON
     {
-	unsigned ii;
+        unsigned ii;
         uint64_t * GF256_RESTRICT z8 = (uint64_t *)(z16);
         const uint64_t * GF256_RESTRICT x8 = (const uint64_t *)(x16);
         const uint64_t * GF256_RESTRICT y8 = (const uint64_t *)(y16);
 
         const unsigned count = (unsigned)bytes / 8;
-        for (ii = 0; ii < count; ++ii)
+        for (ii = 0; ii < count; ++ii) {
             z8[ii] = x8[ii] ^ y8[ii];
+        }
 
         x16 = (const GF256_M128 *)(x8 + count);
         y16 = (const GF256_M128 *)(y8 + count);
@@ -1063,21 +1029,19 @@ extern void gf256_addset_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRI
     }
 #else // GF256_TARGET_MOBILE
 # if defined(GF256_TRY_AVX2)
-    if (CpuHasAVX2)
-    {
+    if (CpuHasAVX2) {
         GF256_M256 * GF256_RESTRICT z32 = (GF256_M256 *)(z16);
         const GF256_M256 * GF256_RESTRICT x32 = (const GF256_M256 *)(x16);
         const GF256_M256 * GF256_RESTRICT y32 = (const GF256_M256 *)(y16);
         unsigned i;
         const unsigned count = bytes / 32;
-        for (i = 0; i < count; ++i)
-        {
+        for (i = 0; i < count; ++i) {
             kernel_fpu_begin();
             _mm256_storeu_si256(z32 + i,
                 _mm256_xor_si256(
                     _mm256_loadu_si256(x32 + i),
                     _mm256_loadu_si256(y32 + i)));
-	    kernel_fpu_end();
+            kernel_fpu_end();
         }
 
         bytes -= count * 32;
@@ -1089,10 +1053,9 @@ extern void gf256_addset_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRI
 # endif // GF256_TRY_AVX2
     {
         // Handle multiples of 64 bytes
-        while (bytes >= 64)
-        {
+        while (bytes >= 64) {
             GF256_M128 x0, x1, x2, x3, y0, y1, y2, y3;
-	    kernel_fpu_begin();
+            kernel_fpu_begin();
             x0 = _mm_loadu_si128(x16);
             x1 = _mm_loadu_si128(x16 + 1);
             x2 = _mm_loadu_si128(x16 + 2);
@@ -1107,22 +1070,21 @@ extern void gf256_addset_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRI
             _mm_storeu_si128(z16 + 2, _mm_xor_si128(x2, y2));
             _mm_storeu_si128(z16 + 3, _mm_xor_si128(x3, y3));
 
-	    kernel_fpu_end();
+            kernel_fpu_end();
             bytes -= 64, x16 += 4, y16 += 4, z16 += 4;
         }
     }
 
     // Handle multiples of 16 bytes
-    while (bytes >= 16)
-    {
+    while (bytes >= 16) {
         // z[i] = x[i] xor y[i]
-	kernel_fpu_begin();
+        kernel_fpu_begin();
         _mm_storeu_si128(z16,
             _mm_xor_si128(
                 _mm_loadu_si128(x16),
                 _mm_loadu_si128(y16)));
 
-	kernel_fpu_end();
+        kernel_fpu_end();
         bytes -= 16, ++x16, ++y16, ++z16;
     }
 #endif // GF256_TARGET_MOBILE
@@ -1133,8 +1095,7 @@ extern void gf256_addset_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRI
 
     // Handle a block of 8 bytes
     eight = bytes & 8;
-    if (eight)
-    {
+    if (eight) {
         uint64_t * GF256_RESTRICT z8 = (uint64_t *)(z1);
         const uint64_t * GF256_RESTRICT x8 = (const uint64_t *)(x1);
         const uint64_t * GF256_RESTRICT y8 = (const uint64_t *)(y1);
@@ -1143,8 +1104,7 @@ extern void gf256_addset_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRI
 
     // Handle a block of 4 bytes
     four = bytes & 4;
-    if (four)
-    {
+    if (four) {
         uint32_t * GF256_RESTRICT z4 = (uint32_t *)(z1 + eight);
         const uint32_t * GF256_RESTRICT x4 = (const uint32_t *)(x1 + eight);
         const uint32_t * GF256_RESTRICT y4 = (const uint32_t *)(y1 + eight);
@@ -1153,13 +1113,12 @@ extern void gf256_addset_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRI
 
     // Handle final bytes
     offset = eight + four;
-    switch (bytes & 3)
-    {
-    case 3: z1[offset + 2] = x1[offset + 2] ^ y1[offset + 2];
-    case 2: z1[offset + 1] = x1[offset + 1] ^ y1[offset + 1];
-    case 1: z1[offset] = x1[offset] ^ y1[offset];
-    default:
-        break;
+    switch (bytes & 3) {
+        case 3: z1[offset + 2] = x1[offset + 2] ^ y1[offset + 2];
+        case 2: z1[offset + 1] = x1[offset + 1] ^ y1[offset + 1];
+        case 1: z1[offset] = x1[offset] ^ y1[offset];
+        default:
+            break;
     }
 }
 
@@ -1173,20 +1132,19 @@ extern void gf256_mul_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT 
     uint8_t * GF256_RESTRICT table;
     int offset, four;
     // Use a single if-statement to handle special cases
-    if (y <= 1)
-    {
-        if (y == 0)
+    if (y <= 1) {
+        if (y == 0) {
             memset(vz, 0, bytes);
-        else if (vz != vx)
+        } else if (vz != vx) {
             memcpy(vz, vx, bytes);
+        }
         return;
     }
 
 
 #if defined(GF256_TARGET_MOBILE)
 #if defined(GF256_TRY_NEON)
-    if (bytes >= 16 && CpuHasNeon)
-    {
+    if (bytes >= 16 && CpuHasNeon) {
         // Partial product tables; see above
         const GF256_M128 table_lo_y = vld1q_u8((uint8_t*)(GF256Ctx.MM128.TABLE_LO_Y + y));
         const GF256_M128 table_hi_y = vld1q_u8((uint8_t*)(GF256Ctx.MM128.TABLE_HI_Y + y));
@@ -1195,8 +1153,7 @@ extern void gf256_mul_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT 
         const GF256_M128 clr_mask = vdupq_n_u8(0x0f);
 
         // Handle multiples of 16 bytes
-        do
-        {
+        do {
             // See above comments for details
             GF256_M128 x0 = vld1q_u8((uint8_t*)x16);
             GF256_M128 l0 = vandq_u8(x0, clr_mask);
@@ -1212,26 +1169,23 @@ extern void gf256_mul_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT 
 #endif
 #else
 # if defined(GF256_TRY_AVX2)
-    if (bytes >= 32 && CpuHasAVX2)
-    {
-	GF256_M256 table_lo_y, table_hi_y, clr_mask;
+    if (bytes >= 32 && CpuHasAVX2) {
+        GF256_M256 table_lo_y, table_hi_y, clr_mask;
         // Partial product tables; see above
-	kernel_fpu_begin();
+        kernel_fpu_begin();
         table_lo_y = _mm256_loadu_si256(GF256Ctx.MM256.TABLE_LO_Y + y);
         table_hi_y = _mm256_loadu_si256(GF256Ctx.MM256.TABLE_HI_Y + y);
-
         // clr_mask = 0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f
         clr_mask = _mm256_set1_epi8(0x0f);
-	kernel_fpu_end();
+        kernel_fpu_end();
 
         GF256_M256 * GF256_RESTRICT z32 = (GF256_M256 *)(vz);
         const GF256_M256 * GF256_RESTRICT x32 = (const GF256_M256 *)(vx);
 
         // Handle multiples of 32 bytes
-        do
-        {
-	    GF256_M256 x0, l0, h0;
-	    kernel_fpu_begin();
+        do {
+            GF256_M256 x0, l0, h0;
+            kernel_fpu_begin();
             // See above comments for details
             x0 = _mm256_loadu_si256(x32);
             l0 = _mm256_and_si256(x0, clr_mask);
@@ -1241,7 +1195,7 @@ extern void gf256_mul_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT 
             h0 = _mm256_shuffle_epi8(table_hi_y, h0);
             _mm256_storeu_si256(z32, _mm256_xor_si256(l0, h0));
 
-	    kernel_fpu_end();
+            kernel_fpu_end();
             bytes -= 32, ++x32, ++z32;
         } while (bytes >= 32);
 
@@ -1249,23 +1203,21 @@ extern void gf256_mul_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT 
         x16 = (const GF256_M128 *)(x32);
     }
 # endif // GF256_TRY_AVX2
-    if (bytes >= 16 && CpuHasSSSE3)
-    {
-	GF256_M128 table_lo_y, table_hi_y, clr_mask;
+    if (bytes >= 16 && CpuHasSSSE3) {
+        GF256_M128 table_lo_y, table_hi_y, clr_mask;
         // Partial product tables; see above
-	kernel_fpu_begin();
+        kernel_fpu_begin();
         table_lo_y = _mm_loadu_si128(GF256Ctx.MM128.TABLE_LO_Y + y);
         table_hi_y = _mm_loadu_si128(GF256Ctx.MM128.TABLE_HI_Y + y);
 
         // clr_mask = 0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f
         clr_mask = _mm_set1_epi8(0x0f);
-	kernel_fpu_end();
+        kernel_fpu_end();
 
         // Handle multiples of 16 bytes
-        do
-        {
-	    GF256_M128 x0, l0, h0;
-	    kernel_fpu_begin();
+        do {
+            GF256_M128 x0, l0, h0;
+            kernel_fpu_begin();
             // See above comments for details
             x0 = _mm_loadu_si128(x16);
             l0 = _mm_and_si128(x0, clr_mask);
@@ -1275,7 +1227,7 @@ extern void gf256_mul_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT 
             h0 = _mm_shuffle_epi8(table_hi_y, h0);
             _mm_storeu_si128(z16, _mm_xor_si128(l0, h0));
 
-	    kernel_fpu_end();
+            kernel_fpu_end();
             bytes -= 16, ++x16, ++z16;
         } while (bytes >= 16);
     }
@@ -1285,8 +1237,7 @@ extern void gf256_mul_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT 
     x1 = (uint8_t*)(x16);
     table = GF256Ctx.GF256_MUL_TABLE + ((unsigned)y << 8);
     // Handle blocks of 8 bytes
-    while (bytes >= 8)
-    {
+    while (bytes >= 8) {
         uint64_t * GF256_RESTRICT z8 = (uint64_t *)(z1);
         uint64_t word = table[x1[0]];
         word |= (uint64_t)table[x1[1]] << 8;
@@ -1303,8 +1254,7 @@ extern void gf256_mul_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT 
 
     // Handle a block of 4 bytes
     four = bytes & 4;
-    if (four)
-    {
+    if (four) {
         uint32_t * GF256_RESTRICT z4 = (uint32_t *)(z1);
         uint32_t word = table[x1[0]];
         word |= (uint32_t)table[x1[1]] << 8;
@@ -1315,13 +1265,12 @@ extern void gf256_mul_mem(void * GF256_RESTRICT vz, const void * GF256_RESTRICT 
 
     // Handle single bytes
     offset = four;
-    switch (bytes & 3)
-    {
-    case 3: z1[offset + 2] = table[x1[offset + 2]];
-    case 2: z1[offset + 1] = table[x1[offset + 1]];
-    case 1: z1[offset] = table[x1[offset]];
-    default:
-        break;
+    switch (bytes & 3) {
+        case 3: z1[offset + 2] = table[x1[offset + 2]];
+        case 2: z1[offset + 1] = table[x1[offset + 1]];
+        case 1: z1[offset] = table[x1[offset]];
+        default:
+            break;
     }
 }
 
@@ -1336,17 +1285,16 @@ extern void gf256_muladd_mem(void * GF256_RESTRICT vz, uint8_t y,
     uint8_t * GF256_RESTRICT table;
     int four, offset;
     // Use a single if-statement to handle special cases
-    if (y <= 1)
-    {
-        if (y == 1)
+    if (y <= 1) {
+        if (y == 1) {
             gf256_add_mem(vz, vx, bytes);
+        }
         return;
     }
 
 #if defined(GF256_TARGET_MOBILE)
 #if defined(GF256_TRY_NEON)
-    if (bytes >= 16 && CpuHasNeon)
-    {
+    if (bytes >= 16 && CpuHasNeon) {
         // Partial product tables; see above
         const GF256_M128 table_lo_y = vld1q_u8((uint8_t*)(GF256Ctx.MM128.TABLE_LO_Y + y));
         const GF256_M128 table_hi_y = vld1q_u8((uint8_t*)(GF256Ctx.MM128.TABLE_HI_Y + y));
@@ -1355,8 +1303,7 @@ extern void gf256_muladd_mem(void * GF256_RESTRICT vz, uint8_t y,
         const GF256_M128 clr_mask = vdupq_n_u8(0x0f);
 
         // Handle multiples of 16 bytes
-        do
-        {
+        do {
             // See above comments for details
             GF256_M128 x0 = vld1q_u8((uint8_t*)x16);
             GF256_M128 l0 = vandq_u8(x0, clr_mask);
@@ -1375,28 +1322,26 @@ extern void gf256_muladd_mem(void * GF256_RESTRICT vz, uint8_t y,
 #endif
 #else // GF256_TARGET_MOBILE
 # if defined(GF256_TRY_AVX2)
-    if (bytes >= 32 && CpuHasAVX2)
-    {
+    if (bytes >= 32 && CpuHasAVX2) {
         // Partial product tables; see above
-	GF256_M256 table_lo_y, table_hi_y, clr_mask;
+        GF256_M256 table_lo_y, table_hi_y, clr_mask;
         kernel_fpu_begin();
         table_lo_y = _mm256_loadu_si256(GF256Ctx.MM256.TABLE_LO_Y + y);
         table_hi_y = _mm256_loadu_si256(GF256Ctx.MM256.TABLE_HI_Y + y);
 
         // clr_mask = 0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f
         clr_mask = _mm256_set1_epi8(0x0f);
-	kernel_fpu_end();
+        kernel_fpu_end();
 
         GF256_M256 * GF256_RESTRICT z32 = (GF256_M256 *)(z16);
         const GF256_M256 * GF256_RESTRICT x32 = (const GF256_M256 *)(x16);
 
         // On my Reed Solomon codec, the encoder unit test runs in 640 usec without and 550 usec with the optimization (86% of the original time)
         const unsigned count = bytes / 64;
-	unsigned i;
-        for (i = 0; i < count; ++i)
-        {
-	    GF256_M256 x0, l0, z0, p0, x1, l1, z1, p1;
-	    kernel_fpu_begin();
+        unsigned i;
+        for (i = 0; i < count; ++i) {
+            GF256_M256 x0, l0, z0, p0, x1, l1, z1, p1;
+            kernel_fpu_begin();
             // See above comments for details
             x0 = _mm256_loadu_si256(x32 + i * 2);
             l0 = _mm256_and_si256(x0, clr_mask);
@@ -1417,16 +1362,15 @@ extern void gf256_muladd_mem(void * GF256_RESTRICT vz, uint8_t y,
             h1 = _mm256_shuffle_epi8(table_hi_y, h1);
             p1 = _mm256_xor_si256(l1, h1);
             _mm256_storeu_si256(z32 + i * 2 + 1, _mm256_xor_si256(p1, z1));
-	    kernel_fpu_end();
+            kernel_fpu_end();
         }
         bytes -= count * 64;
         z32 += count * 2;
         x32 += count * 2;
 
-        if (bytes >= 32)
-        {
+        if (bytes >= 32) {
             GF256_M256 x0, l0, h0, p0, z0;
-	    kernel_fpu_begin();
+            kernel_fpu_begin();
             x0 = _mm256_loadu_si256(x32);
             l0 = _mm256_and_si256(x0, clr_mask);
             x0 = _mm256_srli_epi64(x0, 4);
@@ -1437,7 +1381,7 @@ extern void gf256_muladd_mem(void * GF256_RESTRICT vz, uint8_t y,
             z0 = _mm256_loadu_si256(z32);
             _mm256_storeu_si256(z32, _mm256_xor_si256(p0, z0));
 
-	    kernel_fpu_end();
+            kernel_fpu_end();
             bytes -= 32;
             z32++;
             x32++;
@@ -1447,28 +1391,26 @@ extern void gf256_muladd_mem(void * GF256_RESTRICT vz, uint8_t y,
         x16 = (const GF256_M128 *)(x32);
     }
 # endif // GF256_TRY_AVX2
-    if (bytes >= 16 && CpuHasSSSE3)
-    {
+    if (bytes >= 16 && CpuHasSSSE3) {
         // Partial product tables; see above
-	GF256_M128 table_lo_y, table_hi_y, clr_mask;
-	kernel_fpu_begin();
+        GF256_M128 table_lo_y, table_hi_y, clr_mask;
+        kernel_fpu_begin();
         table_lo_y = _mm_loadu_si128(GF256Ctx.MM128.TABLE_LO_Y + y);
         table_hi_y = _mm_loadu_si128(GF256Ctx.MM128.TABLE_HI_Y + y);
 
         // clr_mask = 0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f
         clr_mask = _mm_set1_epi8(0x0f);
-	kernel_fpu_end();
+        kernel_fpu_end();
 
         // This unroll seems to provide about 7% speed boost when AVX2 is disabled
-        while (bytes >= 32)
-        {
-	    GF256_M128 x1, l1, h1, z1, h0, z0, x0, l0, p0, p1;
-	    kernel_fpu_begin();
+        while (bytes >= 32) {
+            GF256_M128 x1, l1, h1, z1, h0, z0, x0, l0, p0, p1;
+            kernel_fpu_begin();
 
             x1 = _mm_loadu_si128(x16 + 1);
             l1 = _mm_and_si128(x1, clr_mask);
 
-	    bytes -= 32;
+            bytes -= 32;
             x1 = _mm_srli_epi64(x1, 4);
             h1 = _mm_and_si128(x1, clr_mask);
             l1 = _mm_shuffle_epi8(table_lo_y, l1);
@@ -1489,16 +1431,15 @@ extern void gf256_muladd_mem(void * GF256_RESTRICT vz, uint8_t y,
             p0 = _mm_xor_si128(l0, h0);
             _mm_storeu_si128(z16, _mm_xor_si128(p0, z0));
 
-	    kernel_fpu_end();
+            kernel_fpu_end();
             x16 += 2, z16 += 2;
         }
 
         // Handle multiples of 16 bytes
-        while (bytes >= 16)
-        {
+        while (bytes >= 16) {
             // See above comments for details
-	    GF256_M128 x0, h0, l0, p0, z0;
-	    kernel_fpu_begin();
+            GF256_M128 x0, h0, l0, p0, z0;
+            kernel_fpu_begin();
             x0 = _mm_loadu_si128(x16);
             l0 = _mm_and_si128(x0, clr_mask);
             x0 = _mm_srli_epi64(x0, 4);
@@ -1520,8 +1461,7 @@ extern void gf256_muladd_mem(void * GF256_RESTRICT vz, uint8_t y,
     
 
     // Handle blocks of 8 bytes
-    while (bytes >= 8)
-    {
+    while (bytes >= 8) {
         uint64_t * GF256_RESTRICT z8 = (uint64_t *)(z1);
         uint64_t word = table[x1[0]];
         word |= (uint64_t)table[x1[1]] << 8;
@@ -1538,8 +1478,7 @@ extern void gf256_muladd_mem(void * GF256_RESTRICT vz, uint8_t y,
 
     // Handle a block of 4 bytes
     four = bytes & 4;
-    if (four)
-    {
+    if (four) {
         uint32_t * GF256_RESTRICT z4 = (uint32_t *)(z1);
         uint32_t word = table[x1[0]];
         word |= (uint32_t)table[x1[1]] << 8;
@@ -1550,18 +1489,16 @@ extern void gf256_muladd_mem(void * GF256_RESTRICT vz, uint8_t y,
 
     // Handle single bytes
     offset = four;
-    switch (bytes & 3)
-    {
-    case 3: z1[offset + 2] ^= table[x1[offset + 2]];
-    case 2: z1[offset + 1] ^= table[x1[offset + 1]];
-    case 1: z1[offset] ^= table[x1[offset]];
-    default:
-        break;
+    switch (bytes & 3) {
+        case 3: z1[offset + 2] ^= table[x1[offset + 2]];
+        case 2: z1[offset + 1] ^= table[x1[offset + 1]];
+        case 1: z1[offset] ^= table[x1[offset]];
+        default:
+            break;
     }
 }
 
-extern void gf256_memswap(void * GF256_RESTRICT vx, void * GF256_RESTRICT vy, int bytes)
-{
+extern void gf256_memswap(void * GF256_RESTRICT vx, void * GF256_RESTRICT vy, int bytes) {
     int eight, four, offset;
     uint8_t * GF256_RESTRICT x1;
     uint8_t * GF256_RESTRICT y1;
@@ -1571,8 +1508,7 @@ extern void gf256_memswap(void * GF256_RESTRICT vx, void * GF256_RESTRICT vy, in
     uint64_t * GF256_RESTRICT y16 = (uint64_t *)(vy);
     unsigned ii;
     const unsigned count = (unsigned)bytes / 8;
-    for (ii = 0; ii < count; ++ii)
-    {
+    for (ii = 0; ii < count; ++ii) {
         const uint64_t temp = x16[ii];
         x16[ii] = y16[ii];
         y16[ii] = temp;
@@ -1585,15 +1521,14 @@ extern void gf256_memswap(void * GF256_RESTRICT vx, void * GF256_RESTRICT vy, in
     GF256_M128 * GF256_RESTRICT y16 = (GF256_M128 *)(vy);
 
     // Handle blocks of 16 bytes
-    while (bytes >= 16)
-    {
-	GF256_M128 x0, y0;
-	kernel_fpu_begin();
+    while (bytes >= 16) {
+        GF256_M128 x0, y0;
+        kernel_fpu_begin();
         x0 = _mm_loadu_si128(x16);
         y0 = _mm_loadu_si128(y16);
         _mm_storeu_si128(x16, y0);
         _mm_storeu_si128(y16, x0);
-	kernel_fpu_end();
+        kernel_fpu_end();
 
         bytes -= 16, ++x16, ++y16;
     }
@@ -1605,8 +1540,7 @@ extern void gf256_memswap(void * GF256_RESTRICT vx, void * GF256_RESTRICT vy, in
 
     // Handle a block of 8 bytes
     eight = bytes & 8;
-    if (eight)
-    {
+    if (eight) {
         uint64_t * GF256_RESTRICT x8 = (uint64_t *)(x1);
         uint64_t * GF256_RESTRICT y8 = (uint64_t *)(y1);
 
@@ -1617,8 +1551,7 @@ extern void gf256_memswap(void * GF256_RESTRICT vx, void * GF256_RESTRICT vy, in
 
     // Handle a block of 4 bytes
     four = bytes & 4;
-    if (four)
-    {
+    if (four) {
         uint32_t * GF256_RESTRICT x4 = (uint32_t *)(x1 + eight);
         uint32_t * GF256_RESTRICT y4 = (uint32_t *)(y1 + eight);
 
@@ -1629,12 +1562,11 @@ extern void gf256_memswap(void * GF256_RESTRICT vx, void * GF256_RESTRICT vy, in
 
     // Handle final bytes
     offset = eight + four;
-    switch (bytes & 3)
-    {
-    case 3: temp2 = x1[offset + 2]; x1[offset + 2] = y1[offset + 2]; y1[offset + 2] = temp2;
-    case 2: temp2 = x1[offset + 1]; x1[offset + 1] = y1[offset + 1]; y1[offset + 1] = temp2;
-    case 1: temp2 = x1[offset]; x1[offset] = y1[offset]; y1[offset] = temp2;
-    default:
-        break;
+    switch (bytes & 3) {
+        case 3: temp2 = x1[offset + 2]; x1[offset + 2] = y1[offset + 2]; y1[offset + 2] = temp2;
+        case 2: temp2 = x1[offset + 1]; x1[offset + 1] = y1[offset + 1]; y1[offset + 1] = temp2;
+        case 1: temp2 = x1[offset]; x1[offset] = y1[offset]; y1[offset] = temp2;
+        default:
+            break;
     }
 }
