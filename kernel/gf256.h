@@ -73,8 +73,6 @@
     #include <x86intrin.h>
     #undef _MM_MALLOC_H_INCLUDED
     #pragma GCC pop_options
-    //#include <tmmintrin.h> // SSSE3: _mm_shuffle_epi8
-    //#include <emmintrin.h> // SSE2
 #endif // GF256_TARGET_MOBILE
 
 #if defined(HAVE_ARM_NEON_H)
